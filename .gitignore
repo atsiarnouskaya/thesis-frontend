@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jscache
+.DS_Store
+*.pem
+.env
+.env.local
+web-build/
