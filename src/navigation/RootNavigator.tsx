@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { colors } from '../theme/colors';
 import { AppStackParamList, AuthStackParamList } from './types';
@@ -28,6 +29,11 @@ function AppNavigator() {
         name="Home"
         component={HomeScreen}
         options={{ title: 'Fridge', headerTintColor: colors.primary }}
+      />
+      <AppStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ title: 'Profil', headerTintColor: colors.primary }}
       />
     </AppStack.Navigator>
   );

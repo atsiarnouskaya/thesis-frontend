@@ -5,7 +5,8 @@ Aplikacja React Native (Expo) podpięta pod auth-flow backendu Fridge:
 - `POST /auth/register` — `{ username, email, password }`
 - `POST /auth/login` — `{ email, password }` → JWT
 - JWT w `expo-secure-store` (iOS/Android) lub `localStorage` (Expo Web)
-- ekrany: Login, Rejestracja, Home + wylogowanie
+- ekrany: Login, Rejestracja, Home, **Profil** + wylogowanie
+- profil: podgląd username i zdjęcia, zmiana avatara (`POST /uploadProfilePicture`), opcjonalne zdjęcie przy rejestracji
 
 ## Wymagania
 
@@ -47,21 +48,22 @@ Następnie:
 
 ## Test flow
 
-1. **Zarejestruj** użytkownika (hasło: min. 8 znaków, wielka/mała litera, cyfra, znak specjalny, np. `Haslo123!`).
-2. **Zaloguj** tym samym emailem i hasłem.
-3. Na Home zobaczysz skrót JWT.
-4. **Wyloguj** — wracasz do ekranu logowania; token znika z pamięci urządzenia.
+1. **Zarejestruj** użytkownika z opcjonalnym zdjęciem (hasło: min. 8 znaków, wielka/mała litera, cyfra, znak specjalny, np. `Haslo123!`) — po sukcesie jesteś od razu zalogowany.
+2. Na **Home** zobaczysz podgląd profilu (username + avatar).
+3. Wejdź w **Mój profil**, aby zmienić zdjęcie.
+4. **Wyloguj** — wracasz do ekranu logowania.
 
-> **Expo Web:** `expo-secure-store` nie ma natywnego modułu w przeglądarce — token trafia do `localStorage`. Na telefonie/emulatorze używany jest SecureStore.
+> **Profil:** backend zwraca z `/me` na razie email (nie `display_name`). Username zapisywany jest lokalnie po rejestracji. Zdjęcie po uploadzie jest też cache’owane w aplikacji (brak endpointu GET avatara).
 
 ## Struktura
 
 ```
 src/
-  api/           # client + auth endpoints
-  auth/          # AuthContext, SecureStore
-  navigation/    # AuthStack / AppStack
-  screens/       # Login, Register, Home
+  api/           # client + auth + profile upload
+  auth/          # AuthContext, SecureStore, JWT
+  profile/       # ProfileContext, lokalny cache profilu
+  components/    # ProfileAvatar
+  screens/       # Login, Register, Home, Profile
   config/env.ts  # baza URL API
   theme/         # kolory
 ```

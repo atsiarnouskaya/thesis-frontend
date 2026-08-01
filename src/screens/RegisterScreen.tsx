@@ -11,26 +11,55 @@ import {
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../auth/AuthContext';
+import { useProfile } from '../profile/ProfileContext';
 import { AuthStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { pickAndCropProfileImage } from '../utils/pickProfileImage';
+import * as FileSystem from 'expo-file-system/legacy';
+import { saveProfile } from '../profile/profileStorage';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 const PASSWORD_REGEX = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/;
 
+async function readUriAsBase64(uri: string): Promise<string> {
+  return FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+}
+
 export function RegisterScreen({ navigation }: Props) {
-  const { signUp } = useAuth();
+  const { signUp, signIn } = useAuth();
+  const { upsertUsername, uploadPhotoFromUri, refreshProfile } = useProfile();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoPreviewBase64, setPhotoPreviewBase64] = useState<string | undefined>();
+  const [photoFileName, setPhotoFileName] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState('image/jpeg');
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const onPickPhoto = async () => {
+    setError(null);
+    try {
+      const picked = await pickAndCropProfileImage();
+      if (!picked) {
+        return;
+      }
+
+      setPhotoUri(picked.uri);
+      setPhotoFileName(picked.fileName);
+      setPhotoMimeType(picked.mimeType);
+      setPhotoPreviewBase64(await readUriAsBase64(picked.uri));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nie udało się wybrać zdjęcia');
+    }
+  };
 
   const onSubmit = async () => {
     setError(null);
-    setSuccess(null);
 
     if (!username.trim() || !email.trim() || !password) {
       setError('Uzupełnij wszystkie pola');
@@ -46,9 +75,27 @@ export function RegisterScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      await signUp({ username, email, password });
-      setSuccess('Konto utworzone. Możesz się zalogować.');
-      setTimeout(() => navigation.navigate('Login'), 800);
+      const trimmedEmail = email.trim();
+      const trimmedUsername = username.trim();
+
+      await signUp({ username: trimmedUsername, email: trimmedEmail, password });
+      await signIn(trimmedEmail, password);
+      await upsertUsername(trimmedUsername, trimmedEmail);
+
+      if (photoUri && photoFileName) {
+        try {
+          await uploadPhotoFromUri(photoUri, photoFileName, photoMimeType);
+        } catch {
+          if (photoPreviewBase64) {
+            await saveProfile({
+              email: trimmedEmail.toLowerCase(),
+              username: trimmedUsername,
+              avatarBase64: photoPreviewBase64,
+            });
+            await refreshProfile();
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Rejestracja nie powiodła się');
     } finally {
@@ -65,7 +112,20 @@ export function RegisterScreen({ navigation }: Props) {
         <View style={styles.card}>
           <Text style={styles.brand}>Fridge</Text>
           <Text style={styles.title}>Załóż konto</Text>
-          <Text style={styles.subtitle}>Rejestracja przez /auth/register</Text>
+          <Text style={styles.subtitle}>Opcjonalnie dodaj zdjęcie — przytniesz je do kwadratu</Text>
+
+          <View style={styles.avatarRow}>
+            <ProfileAvatar
+              username={username || 'U'}
+              avatarBase64={photoPreviewBase64}
+              size={96}
+              editable
+              onPress={loading ? undefined : onPickPhoto}
+            />
+            <Pressable onPress={onPickPhoto} disabled={loading}>
+              <Text style={styles.photoLink}>{photoUri ? 'Przytnij ponownie' : 'Wybierz i przytnij'}</Text>
+            </Pressable>
+          </View>
 
           <Text style={styles.label}>Nazwa użytkownika</Text>
           <TextInput
@@ -75,6 +135,7 @@ export function RegisterScreen({ navigation }: Props) {
             placeholderTextColor={colors.textMuted}
             value={username}
             onChangeText={setUsername}
+            editable={!loading}
           />
 
           <Text style={styles.label}>Email</Text>
@@ -87,6 +148,7 @@ export function RegisterScreen({ navigation }: Props) {
             placeholderTextColor={colors.textMuted}
             value={email}
             onChangeText={setEmail}
+            editable={!loading}
           />
 
           <Text style={styles.label}>Hasło</Text>
@@ -97,10 +159,10 @@ export function RegisterScreen({ navigation }: Props) {
             placeholderTextColor={colors.textMuted}
             value={password}
             onChangeText={setPassword}
+            editable={!loading}
           />
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          {success ? <Text style={styles.success}>{success}</Text> : null}
 
           <Pressable
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -150,8 +212,17 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 4,
-    marginBottom: 20,
+    marginBottom: 16,
     color: colors.textMuted,
+  },
+  avatarRow: {
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 18,
+  },
+  photoLink: {
+    color: colors.primaryMuted,
+    fontWeight: '600',
   },
   label: {
     marginBottom: 6,
@@ -171,10 +242,6 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.error,
-    marginBottom: 12,
-  },
-  success: {
-    color: colors.accent,
     marginBottom: 12,
   },
   button: {

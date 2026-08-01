@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../auth/AuthContext';
+import { useProfile } from '../profile/ProfileContext';
+import { AppStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 
-export function HomeScreen() {
-  const { signOut, token } = useAuth();
+type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
+
+export function HomeScreen({ navigation }: Props) {
+  const { signOut } = useAuth();
+  const { profile, isLoading } = useProfile();
   const [loading, setLoading] = useState(false);
 
   const onLogout = async () => {
@@ -16,21 +23,30 @@ export function HomeScreen() {
     }
   };
 
-  const preview = token ? `${token.slice(0, 18)}…` : '—';
+  const username = profile?.username ?? 'Użytkowniku';
 
   return (
     <View style={styles.container}>
       <View style={styles.card}>
         <Text style={styles.brand}>Fridge</Text>
-        <Text style={styles.title}>Jesteś zalogowany</Text>
-        <Text style={styles.subtitle}>
-          Token JWT jest zapisany w SecureStore. Stąd rozbudujesz ekrany lodówki.
-        </Text>
+        <Text style={styles.title}>Cześć, {username}!</Text>
+        <Text style={styles.subtitle}>Zarządzaj lodówką i swoim profilem w jednym miejscu.</Text>
 
-        <View style={styles.tokenBox}>
-          <Text style={styles.tokenLabel}>JWT (skrót)</Text>
-          <Text style={styles.tokenValue}>{preview}</Text>
+        <View style={styles.profilePreview}>
+          <ProfileAvatar
+            username={profile?.username ?? username}
+            avatarBase64={profile?.avatarBase64}
+            size={72}
+          />
+          <View style={styles.profileText}>
+            <Text style={styles.profileName}>{profile?.username ?? '—'}</Text>
+            <Text style={styles.profileEmail}>{profile?.email ?? (isLoading ? 'Ładowanie…' : '—')}</Text>
+          </View>
         </View>
+
+        <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('Profile')}>
+          <Text style={styles.primaryButtonText}>Mój profil</Text>
+        </Pressable>
 
         <Pressable
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -79,21 +95,39 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     lineHeight: 20,
   },
-  tokenBox: {
+  profilePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
     backgroundColor: '#F0F7F4',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 14,
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  tokenLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 6,
-    fontWeight: '600',
+  profileText: {
+    flex: 1,
   },
-  tokenValue: {
+  profileName: {
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.text,
-    fontFamily: 'monospace',
+  },
+  profileEmail: {
+    marginTop: 4,
+    color: colors.textMuted,
+    fontSize: 13,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
   button: {
     backgroundColor: colors.error,
