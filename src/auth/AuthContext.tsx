@@ -10,6 +10,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (payload: RegisterRequest) => Promise<void>;
   signOut: () => Promise<void>;
+  applySessionToken: (rawToken: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -78,6 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
   }, []);
 
+  const applySessionToken = useCallback(async (rawToken: string) => {
+    const cleanToken = await persistToken(rawToken);
+    setToken(cleanToken);
+  }, []);
+
   const value = useMemo(
     () => ({
       token,
@@ -86,8 +92,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signUp,
       signOut,
+      applySessionToken,
     }),
-    [token, isBootstrapping, signIn, signUp, signOut],
+    [token, isBootstrapping, signIn, signUp, signOut, applySessionToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

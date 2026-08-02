@@ -6,7 +6,12 @@ Aplikacja React Native (Expo) podpięta pod auth-flow backendu Fridge:
 - `POST /auth/login` — `{ email, password }` → JWT
 - JWT w `expo-secure-store` (iOS/Android) lub `localStorage` (Expo Web)
 - ekrany: Login, Rejestracja, Home, **Profil** + wylogowanie
-- profil: podgląd username i zdjęcia, zmiana avatara (`POST /uploadProfilePicture`), opcjonalne zdjęcie przy rejestracji
+- `GET /me` — profil (username, email, avatar Base64)
+- `PATCH /me/username` — `{ username }` → nowy JWT
+- `PATCH /me/email` — `{ email, currentPassword }` → nowy JWT
+- `PATCH /me/password` — `{ currentPassword, newPassword }` → nowy JWT
+- `DELETE /me` — `{ currentPassword }` — usuwa konto
+- profil w aplikacji: podgląd, zmiana avatara, edycja danych konta
 
 ## Wymagania
 
@@ -44,28 +49,28 @@ Następnie:
 
 - `a` — Android emulator
 - `i` — iOS simulator
+- `w` — **przeglądarka (layout desktop od ~840px / sidebar od ~960px)**
 - zeskanuj QR kodem w Expo Go
 
 ## Test flow
 
 1. **Zarejestruj** użytkownika z opcjonalnym zdjęciem (hasło: min. 8 znaków, wielka/mała litera, cyfra, znak specjalny, np. `Haslo123!`) — po sukcesie jesteś od razu zalogowany.
 2. Na **Home** zobaczysz podgląd profilu (username + avatar).
-3. Wejdź w **Mój profil**, aby zmienić zdjęcie.
+3. Wejdź w **Mój profil**, aby zmienić zdjęcie, nazwę, email, hasło lub usunąć konto.
 4. **Wyloguj** — wracasz do ekranu logowania.
 
-> **Profil:** backend zwraca z `/me` na razie email (nie `display_name`). Username zapisywany jest lokalnie po rejestracji. Zdjęcie po uploadzie jest też cache’owane w aplikacji (brak endpointu GET avatara).
+> **Profil:** `GET /me` zwraca JSON `{ username, email, profilePicture }` (avatar jako Base64, gdy jest w Minio). Aplikacja synchronizuje profil z API po logowaniu i po uploadzie zdjęcia; AsyncStorage trzyma ostatni znany stan offline.
 
 ## Struktura
 
 ```
 src/
-  api/           # client + auth + profile upload
+  api/           # client + auth + profile + account
   auth/          # AuthContext, SecureStore, JWT
   profile/       # ProfileContext, lokalny cache profilu
-  components/    # ProfileAvatar
-  screens/       # Login, Register, Home, Profile
-  config/env.ts  # baza URL API
-  theme/         # kolory
+  components/    # ScreenShell, AuthSplitLayout, AppChrome, ProfileAvatar
+  hooks/         # useResponsiveLayout
+  theme/         # kolory, formularze, layout web
 ```
 
 ## Backend

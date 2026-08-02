@@ -1,6 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { fetchCurrentUserEmail, uploadProfilePicture } from '../api/profile';
-import { getEmailFromJwt } from '../auth/jwt';
+import {
+  fetchCurrentUserProfile,
+  toStoredUserProfile,
+  uploadProfilePicture,
+} from '../api/profile';
+import { getEmailFromJwt, getUsernameFromJwt } from '../auth/jwt';
 import { useAuth } from '../auth/AuthContext';
 import { loadProfile, saveProfile } from './profileStorage';
 import { UserProfile } from './profileTypes';
@@ -10,29 +14,35 @@ type ProfileContextValue = {
   profile: UserProfile | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
-  upsertUsername: (username: string, email: string) => Promise<void>;
   changeProfilePhoto: () => Promise<void>;
   uploadPhotoFromUri: (uri: string, fileName: string, mimeType: string) => Promise<void>;
 };
 
 const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
 
+function profileFromJwtFallback(token: string, stored: UserProfile | null): UserProfile | null {
+  const email = getEmailFromJwt(token)?.trim().toLowerCase() ?? stored?.email;
+  if (!email) {
+    return stored;
+  }
+
+  const username =
+    getUsernameFromJwt(token) ??
+    stored?.username ??
+    email.split('@')[0] ??
+    email;
+
+  return {
+    email,
+    username,
+    avatarBase64: stored?.avatarBase64,
+  };
+}
+
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { token, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const resolveEmail = useCallback(async (): Promise<string | null> => {
-    if (!token) {
-      return null;
-    }
-
-    try {
-      return await fetchCurrentUserEmail();
-    } catch {
-      return getEmailFromJwt(token);
-    }
-  }, [token]);
 
   const persistProfile = useCallback(async (next: UserProfile) => {
     const normalized: UserProfile = {
@@ -43,6 +53,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     setProfile(normalized);
   }, []);
 
+  const syncProfileFromApi = useCallback(async () => {
+    const me = await fetchCurrentUserProfile();
+    const stored = await loadProfile(me.email);
+    await persistProfile(toStoredUserProfile(me, stored?.avatarBase64));
+  }, [persistProfile]);
+
   const refreshProfile = useCallback(async () => {
     if (!isAuthenticated || !token) {
       setProfile(null);
@@ -51,69 +67,37 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
     try {
-      const email = await resolveEmail();
-      if (!email) {
-        setProfile(null);
+      try {
+        await syncProfileFromApi();
         return;
+      } catch {
+        const email = getEmailFromJwt(token)?.trim().toLowerCase();
+        const stored = email ? await loadProfile(email) : null;
+        const fallback = profileFromJwtFallback(token, stored);
+        if (fallback) {
+          setProfile(fallback);
+          if (email) {
+            await saveProfile(fallback);
+          }
+        } else {
+          setProfile(null);
+        }
       }
-
-      const normalizedEmail = email.trim().toLowerCase();
-      const stored = await loadProfile(normalizedEmail);
-      if (stored) {
-        setProfile(stored);
-        return;
-      }
-
-      setProfile({
-        email: normalizedEmail,
-        username: email.split('@')[0] ?? email,
-      });
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, token, resolveEmail]);
+  }, [isAuthenticated, token, syncProfileFromApi]);
 
   useEffect(() => {
     refreshProfile();
   }, [refreshProfile]);
 
-  const upsertUsername = useCallback(
-    async (username: string, email: string) => {
-      const normalizedEmail = email.trim().toLowerCase();
-      const stored = (await loadProfile(normalizedEmail)) ?? {
-        email: normalizedEmail,
-        username: normalizedEmail.split('@')[0] ?? normalizedEmail,
-      };
-
-      await persistProfile({
-        ...stored,
-        username: username.trim(),
-        avatarBase64: stored.avatarBase64 ?? profile?.avatarBase64,
-      });
-    },
-    [persistProfile, profile?.avatarBase64],
-  );
-
   const uploadPhotoFromUri = useCallback(
     async (uri: string, fileName: string, mimeType: string) => {
-      const email = await resolveEmail();
-      if (!email) {
-        throw new Error('Nie udało się ustalić email użytkownika');
-      }
-
-      const normalizedEmail = email.trim().toLowerCase();
-      const avatarBase64 = await uploadProfilePicture(uri, fileName, mimeType);
-      const stored = (await loadProfile(normalizedEmail)) ?? {
-        email: normalizedEmail,
-        username: profile?.username ?? normalizedEmail.split('@')[0] ?? normalizedEmail,
-      };
-
-      await persistProfile({
-        ...stored,
-        avatarBase64,
-      });
+      await uploadProfilePicture(uri, fileName, mimeType);
+      await syncProfileFromApi();
     },
-    [persistProfile, profile?.username, resolveEmail],
+    [syncProfileFromApi],
   );
 
   const changeProfilePhoto = useCallback(async () => {
@@ -130,11 +114,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       profile,
       isLoading,
       refreshProfile,
-      upsertUsername,
       changeProfilePhoto,
       uploadPhotoFromUri,
     }),
-    [profile, isLoading, refreshProfile, upsertUsername, changeProfilePhoto, uploadPhotoFromUri],
+    [profile, isLoading, refreshProfile, changeProfilePhoto, uploadPhotoFromUri],
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

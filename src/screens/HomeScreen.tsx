@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AppChrome } from '../components/AppChrome';
 import { ProfileAvatar } from '../components/ProfileAvatar';
+import { ScreenShell } from '../components/ScreenShell';
 import { useAuth } from '../auth/AuthContext';
 import { useProfile } from '../profile/ProfileContext';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { AppStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { formStyles, webPointer } from '../theme/forms';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
 
 export function HomeScreen({ navigation }: Props) {
   const { signOut } = useAuth();
   const { profile, isLoading } = useProfile();
+  const { isWideWeb } = useResponsiveLayout();
   const [loading, setLoading] = useState(false);
 
   const onLogout = async () => {
@@ -26,74 +31,75 @@ export function HomeScreen({ navigation }: Props) {
   const username = profile?.username ?? 'Użytkowniku';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.brand}>Fridge</Text>
+    <AppChrome navigation={navigation} activeRoute="Home">
+      <ScreenShell variant="app" card>
+        <Text style={formStyles.brand}>Fridge</Text>
         <Text style={styles.title}>Cześć, {username}!</Text>
-        <Text style={styles.subtitle}>Zarządzaj lodówką i swoim profilem w jednym miejscu.</Text>
+        <Text style={styles.subtitle}>
+          Zarządzaj lodówką i swoim profilem w jednym miejscu — wygodnie na dużym ekranie i na telefonie.
+        </Text>
 
-        <View style={styles.profilePreview}>
+        <View style={[styles.profilePreview, isWideWeb && styles.profilePreviewWide]}>
           <ProfileAvatar
             username={profile?.username ?? username}
             avatarBase64={profile?.avatarBase64}
-            size={72}
+            size={isWideWeb ? 88 : 72}
           />
           <View style={styles.profileText}>
             <Text style={styles.profileName}>{profile?.username ?? '—'}</Text>
-            <Text style={styles.profileEmail}>{profile?.email ?? (isLoading ? 'Ładowanie…' : '—')}</Text>
+            <Text style={styles.profileEmail}>
+              {profile?.email ?? (isLoading ? 'Ładowanie…' : '—')}
+            </Text>
           </View>
         </View>
 
-        <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('Profile')}>
-          <Text style={styles.primaryButtonText}>Mój profil</Text>
-        </Pressable>
+        {!isWideWeb ? (
+          <>
+            <Pressable
+              style={[formStyles.primaryButton, styles.cta, webPointer]}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Text style={formStyles.primaryButtonText}>Mój profil</Text>
+            </Pressable>
 
-        <Pressable
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={onLogout}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Wyloguj</Text>
-          )}
-        </Pressable>
-      </View>
-    </View>
+            <Pressable
+              style={[styles.logoutButton, loading && formStyles.buttonDisabled, webPointer]}
+              onPress={onLogout}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={formStyles.primaryButtonText}>Wyloguj</Text>
+              )}
+            </Pressable>
+          </>
+        ) : (
+          <Pressable
+            style={[formStyles.secondaryButton, styles.ctaWide, webPointer]}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Text style={formStyles.secondaryButtonText}>Przejdź do ustawień profilu →</Text>
+          </Pressable>
+        )}
+      </ScreenShell>
+    </AppChrome>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  brand: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 8,
-  },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: 26,
+    fontWeight: '700',
     color: colors.text,
+    marginTop: 4,
   },
   subtitle: {
-    marginTop: 8,
-    marginBottom: 20,
+    marginTop: 10,
+    marginBottom: 24,
     color: colors.textMuted,
-    lineHeight: 20,
+    lineHeight: 22,
+    maxWidth: 520,
   },
   profilePreview: {
     flexDirection: 'row',
@@ -101,46 +107,37 @@ const styles = StyleSheet.create({
     gap: 14,
     backgroundColor: '#F0F7F4',
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  profilePreviewWide: {
+    padding: 20,
+    marginBottom: 28,
   },
   profileText: {
     flex: 1,
   },
   profileName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
   },
   profileEmail: {
     marginTop: 4,
     color: colors.textMuted,
-    fontSize: 13,
+    fontSize: 14,
   },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
+  cta: {
     marginBottom: 10,
   },
-  primaryButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+  ctaWide: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 20,
   },
-  button: {
+  logoutButton: {
     backgroundColor: colors.error,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
   },
 });

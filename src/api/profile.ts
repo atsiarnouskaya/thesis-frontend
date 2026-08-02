@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { API_URL } from '../config/env';
 import { ApiError } from './client';
 import { getToken } from '../auth/tokenStorage';
-import { arrayBufferToBase64 } from '../utils/base64';
+import { UserProfile } from '../profile/profileTypes';
 
 type ReactNativeFile = {
   uri: string;
@@ -11,7 +11,71 @@ type ReactNativeFile = {
   type: string;
 };
 
-export async function fetchCurrentUserEmail(): Promise<string> {
+export type CurrentUserProfile = {
+  username: string;
+  email: string;
+  profilePicture: string | null;
+};
+
+type MeResponseRaw = {
+  username?: unknown;
+  email?: unknown;
+  profilePicture?: unknown;
+};
+
+function bytesToBase64(bytes: number[]): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return globalThis.btoa(binary);
+}
+
+/** Jackson serializes `byte[]` as Base64 string; some clients may see a numeric array. */
+export function normalizeProfilePicture(raw: unknown): string | null {
+  if (raw == null) {
+    return null;
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (Array.isArray(raw) && raw.length > 0 && raw.every((value) => typeof value === 'number')) {
+    return bytesToBase64(raw);
+  }
+
+  return null;
+}
+
+export function mapMeResponseToUserProfile(raw: MeResponseRaw): CurrentUserProfile {
+  if (typeof raw.email !== 'string' || !raw.email.trim()) {
+    throw new ApiError('Nieprawidłowa odpowiedź /me (brak email)', 502);
+  }
+
+  const email = raw.email.trim().toLowerCase();
+  const username =
+    typeof raw.username === 'string' && raw.username.trim()
+      ? raw.username.trim()
+      : email.split('@')[0] ?? email;
+
+  return {
+    email,
+    username,
+    profilePicture: normalizeProfilePicture(raw.profilePicture),
+  };
+}
+
+export function toStoredUserProfile(me: CurrentUserProfile, cachedAvatar?: string): UserProfile {
+  return {
+    email: me.email,
+    username: me.username,
+    avatarBase64: me.profilePicture ?? cachedAvatar,
+  };
+}
+
+export async function fetchCurrentUserProfile(): Promise<CurrentUserProfile> {
   const token = await getToken();
   if (!token) {
     throw new ApiError('Brak tokenu', 401);
@@ -29,16 +93,14 @@ export async function fetchCurrentUserEmail(): Promise<string> {
     throw new ApiError(text || `Request failed (${response.status})`, response.status);
   }
 
+  let parsed: MeResponseRaw;
   try {
-    const parsed = JSON.parse(text) as unknown;
-    if (typeof parsed === 'string') {
-      return parsed;
-    }
+    parsed = JSON.parse(text) as MeResponseRaw;
   } catch {
-    // plain string without JSON quotes
+    throw new ApiError('Nieprawidłowa odpowiedź /me (JSON)', 502);
   }
 
-  return text.replace(/^"|"$/g, '');
+  return mapMeResponseToUserProfile(parsed);
 }
 
 async function resolveUploadUri(uri: string): Promise<string> {
@@ -92,7 +154,7 @@ export async function uploadProfilePicture(
   uri: string,
   fileName: string,
   mimeType: string,
-): Promise<string> {
+): Promise<void> {
   const token = await getToken();
   if (!token) {
     throw new ApiError('Brak tokenu', 401);
@@ -113,7 +175,4 @@ export async function uploadProfilePicture(
     const message = await response.text();
     throw new ApiError(message || `Upload failed (${response.status})`, response.status);
   }
-
-  const buffer = await response.arrayBuffer();
-  return arrayBufferToBase64(buffer);
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
@@ -24,17 +24,15 @@ function AuthNavigator() {
 
 function AppNavigator() {
   return (
-    <AppStack.Navigator>
-      <AppStack.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{ title: 'Fridge', headerTintColor: colors.primary }}
-      />
-      <AppStack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ title: 'Profil', headerTintColor: colors.primary }}
-      />
+    <AppStack.Navigator
+      screenOptions={{
+        headerShown: Platform.OS !== 'web',
+        headerTintColor: colors.primary,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <AppStack.Screen name="Home" component={HomeScreen} options={{ title: 'Fridge' }} />
+      <AppStack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil' }} />
     </AppStack.Navigator>
   );
 }
