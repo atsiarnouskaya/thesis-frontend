@@ -6,4 +6,6 @@ export type AuthStackParamList = {
 export type AppStackParamList = {
   Home: undefined;
   Profile: undefined;
+  Households: { inviteCode?: string } | undefined;
+  HouseholdDetail: { householdId: string };
 };

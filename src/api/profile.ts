@@ -4,6 +4,7 @@ import { API_URL } from '../config/env';
 import { ApiError } from './client';
 import { getToken } from '../auth/tokenStorage';
 import { UserProfile } from '../profile/profileTypes';
+import { normalizeBinaryBase64 } from '../utils/binaryPayload';
 
 type ReactNativeFile = {
   uri: string;
@@ -23,30 +24,8 @@ type MeResponseRaw = {
   profilePicture?: unknown;
 };
 
-function bytesToBase64(bytes: number[]): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return globalThis.btoa(binary);
-}
-
-/** Jackson serializes `byte[]` as Base64 string; some clients may see a numeric array. */
 export function normalizeProfilePicture(raw: unknown): string | null {
-  if (raw == null) {
-    return null;
-  }
-
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (Array.isArray(raw) && raw.length > 0 && raw.every((value) => typeof value === 'number')) {
-    return bytesToBase64(raw);
-  }
-
-  return null;
+  return normalizeBinaryBase64(raw);
 }
 
 export function mapMeResponseToUserProfile(raw: MeResponseRaw): CurrentUserProfile {

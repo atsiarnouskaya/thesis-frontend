@@ -3,6 +3,7 @@
     "name": "Fridge",
     "slug": "fridge-mobile",
     "version": "1.0.0",
+    "scheme": "fridge",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

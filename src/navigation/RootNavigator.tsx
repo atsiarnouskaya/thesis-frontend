@@ -4,11 +4,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { HomeScreen } from '../screens/HomeScreen';
+import { HouseholdDetailScreen } from '../screens/HouseholdDetailScreen';
+import { HouseholdListScreen } from '../screens/HouseholdListScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { colors } from '../theme/colors';
 import { AppStackParamList, AuthStackParamList } from './types';
+import { createAppLinking } from './linking';
+import { JoinInviteLinkHandler, navigationRef } from './joinInviteNavigation';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
@@ -32,6 +36,12 @@ function AppNavigator() {
       }}
     >
       <AppStack.Screen name="Home" component={HomeScreen} options={{ title: 'Fridge' }} />
+      <AppStack.Screen name="Households" component={HouseholdListScreen} options={{ title: 'Lodówki' }} />
+      <AppStack.Screen
+        name="HouseholdDetail"
+        component={HouseholdDetailScreen}
+        options={{ title: 'Lodówka' }}
+      />
       <AppStack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil' }} />
     </AppStack.Navigator>
   );
@@ -56,8 +66,14 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
-      {isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
-    </NavigationContainer>
+    <>
+      <JoinInviteLinkHandler isAuthenticated={isAuthenticated} />
+      <NavigationContainer
+        ref={navigationRef}
+        linking={isAuthenticated ? createAppLinking() : undefined}
+      >
+        {isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
+      </NavigationContainer>
+    </>
   );
 }

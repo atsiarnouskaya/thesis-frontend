@@ -36,8 +36,15 @@ export function HomeScreen({ navigation }: Props) {
         <Text style={formStyles.brand}>Fridge</Text>
         <Text style={styles.title}>Cześć, {username}!</Text>
         <Text style={styles.subtitle}>
-          Zarządzaj lodówką i swoim profilem w jednym miejscu — wygodnie na dużym ekranie i na telefonie.
+          Zarządzaj wspólnymi lodówkami i swoim profilem — na telefonie i w przeglądarce.
         </Text>
+
+        <Pressable
+          style={[formStyles.primaryButton, styles.ctaPrimary, webPointer]}
+          onPress={() => navigation.navigate('Households')}
+        >
+          <Text style={formStyles.primaryButtonText}>Moje lodówki</Text>
+        </Pressable>
 
         <View style={[styles.profilePreview, isWideWeb && styles.profilePreviewWide]}>
           <ProfileAvatar
@@ -56,10 +63,10 @@ export function HomeScreen({ navigation }: Props) {
         {!isWideWeb ? (
           <>
             <Pressable
-              style={[formStyles.primaryButton, styles.cta, webPointer]}
+              style={[formStyles.secondaryButton, styles.cta, webPointer]}
               onPress={() => navigation.navigate('Profile')}
             >
-              <Text style={formStyles.primaryButtonText}>Mój profil</Text>
+              <Text style={formStyles.secondaryButtonText}>Mój profil</Text>
             </Pressable>
 
             <Pressable
@@ -79,7 +86,7 @@ export function HomeScreen({ navigation }: Props) {
             style={[formStyles.secondaryButton, styles.ctaWide, webPointer]}
             onPress={() => navigation.navigate('Profile')}
           >
-            <Text style={formStyles.secondaryButtonText}>Przejdź do ustawień profilu →</Text>
+            <Text style={formStyles.secondaryButtonText}>Ustawienia profilu →</Text>
           </Pressable>
         )}
       </ScreenShell>
@@ -126,6 +133,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: colors.textMuted,
     fontSize: 14,
+  },
+  ctaPrimary: {
+    marginBottom: 20,
   },
   cta: {
     marginBottom: 10,

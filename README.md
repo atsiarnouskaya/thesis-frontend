@@ -7,6 +7,7 @@ Aplikacja React Native (Expo) podpięta pod auth-flow backendu Fridge:
 - JWT w `expo-secure-store` (iOS/Android) lub `localStorage` (Expo Web)
 - ekrany: Login, Rejestracja, Home, **Profil** + wylogowanie
 - `GET /me` — profil (username, email, avatar Base64)
+- **Lodówki (household):** `GET/POST /household`, `POST /household/join` (prośba, `JoinRequestResponse`), `GET /household/join-requests/mine`, `GET /household/{id}/join-requests`, `POST /household/join-requests/{id}/accept|reject`, `GET /household/{id}`, `GET /household/{id}/members`, `POST /household/regenerate-invitation/{id}` — odpowiedź z `invitationWithQr` (`code`, `qr` Base64, opcjonalnie `expiresAt`)
 - `PATCH /me/username` — `{ username }` → nowy JWT
 - `PATCH /me/email` — `{ email, currentPassword }` → nowy JWT
 - `PATCH /me/password` — `{ currentPassword, newPassword }` → nowy JWT
@@ -37,6 +38,8 @@ cp .env.example .env
 
 Telefon i komputer muszą być w tej samej sieci Wi‑Fi. Backend musi nasłuchiwać na `0.0.0.0` / być dostępny z LAN (domyślny Spring Boot na `8080` zwykle wystarczy).
 
+**QR / dołączanie:** W `.env` ustaw `EXPO_PUBLIC_APP_LINK_URL` na publiczny adres **webowej** apki Expo (np. `http://192.168.1.20:8081`). QR koduje link `/join?inviteCode=…` → po zalogowaniu aplikacja woła `POST /household/join` (prośba). Właściciel akceptuje na ekranie szczegółów lodówki (`POST …/accept`).
+
 Po zmianie `.env` zrestartuj Expo (`npm start`).
 
 ## Uruchomienie
@@ -55,7 +58,7 @@ Następnie:
 ## Test flow
 
 1. **Zarejestruj** użytkownika z opcjonalnym zdjęciem (hasło: min. 8 znaków, wielka/mała litera, cyfra, znak specjalny, np. `Haslo123!`) — po sukcesie jesteś od razu zalogowany.
-2. Na **Home** zobaczysz podgląd profilu (username + avatar).
+2. Na **Home** użyj **Moje lodówki** — utwórz gospodarstwo, dołącz kodem lub zobacz członków.
 3. Wejdź w **Mój profil**, aby zmienić zdjęcie, nazwę, email, hasło lub usunąć konto.
 4. **Wyloguj** — wracasz do ekranu logowania.
 

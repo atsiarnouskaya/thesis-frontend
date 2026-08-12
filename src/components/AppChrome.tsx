@@ -58,6 +58,7 @@ export function AppChrome({ navigation, activeRoute, children, scroll = false }:
         <Text style={styles.sidebarTagline}>Panel użytkownika</Text>
         <View style={styles.nav}>
           {navItem('Home', 'Start')}
+          {navItem('Households', 'Lodówki')}
           {navItem('Profile', 'Mój profil')}
         </View>
         <Pressable
