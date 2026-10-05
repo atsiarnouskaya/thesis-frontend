@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
-import QRCode from 'qrcode';
+import React, { useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { buildHouseholdJoinUrl } from '../household/joinLink';
 import { colors } from '../theme/colors';
 
@@ -9,52 +8,81 @@ type Props = {
   size?: number;
 };
 
-export function HouseholdJoinQr({ inviteCode, size = 200 }: Props) {
-  const [dataUri, setDataUri] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+type QrMatrix = {
+  cells: boolean[][];
+  moduleCount: number;
+};
 
+// qrcode/lib/core/qrcode działa w React Native - bez canvas w przeciwieństwie do toDataURL().
+const QRCodeCore = require('qrcode/lib/core/qrcode') as {
+  create: (
+    data: string,
+    options?: { errorCorrectionLevel?: string },
+  ) => {
+    modules: {
+      size: number;
+      get: (row: number, col: number) => boolean;
+    };
+  };
+};
+
+function buildQrMatrix(value: string): QrMatrix {
+  const { modules } = QRCodeCore.create(value, { errorCorrectionLevel: 'M' });
+  const moduleCount = modules.size;
+  const cells: boolean[][] = [];
+
+  for (let row = 0; row < moduleCount; row += 1) {
+    const rowCells: boolean[] = [];
+    for (let col = 0; col < moduleCount; col += 1) {
+      rowCells.push(Boolean(modules.get(row, col)));
+    }
+    cells.push(rowCells);
+  }
+
+  return { cells, moduleCount };
+}
+
+export function HouseholdJoinQr({ inviteCode, size = 200 }: Props) {
   const joinUrl = buildHouseholdJoinUrl(inviteCode);
 
-  useEffect(() => {
-    let cancelled = false;
-    setFailed(false);
-    setDataUri(null);
+  const matrix = useMemo(() => {
+    try {
+      return buildQrMatrix(joinUrl);
+    } catch {
+      return null;
+    }
+  }, [joinUrl]);
 
-    QRCode.toDataURL(joinUrl, {
-      width: size,
-      margin: 1,
-      errorCorrectionLevel: 'M',
-    })
-      .then((uri) => {
-        if (!cancelled) {
-          setDataUri(uri);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFailed(true);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [joinUrl, size]);
-
-  if (failed || !dataUri) {
+  if (!matrix) {
     return (
-      <View style={[styles.box, { width: size, height: size }]}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={[styles.box, styles.boxError, { width: size, height: size }]}>
+        <Text style={styles.errorText}>Nie udało się wygenerować kodu QR</Text>
       </View>
     );
   }
 
+  const cellSize = size / matrix.moduleCount;
+
   return (
-    <Image
-      source={{ uri: dataUri }}
-      style={{ width: size, height: size, borderRadius: 12 }}
+    <View
+      style={[styles.box, { width: size, height: size }]}
       accessibilityLabel="Kod QR do dołączenia do lodówki"
-    />
+    >
+      {matrix.cells.map((row, rowIndex) => (
+        <View key={`row-${rowIndex}`} style={[styles.row, { height: cellSize }]}>
+          {row.map((isDark, colIndex) => (
+            <View
+              key={`cell-${rowIndex}-${colIndex}`}
+              style={{
+                width: cellSize,
+                height: cellSize,
+                backgroundColor: isDark ? colors.text : '#FFFFFF',
+              }}
+            />
+          ))}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -64,7 +92,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  boxError: {
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 12,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  row: {
+    flexDirection: 'row',
   },
 });

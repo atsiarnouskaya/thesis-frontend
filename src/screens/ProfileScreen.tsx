@@ -8,7 +8,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import { deleteAccount, updateEmail, updatePassword, updateUsername } from '../api/account';
 import { ApiError } from '../api/client';
 import { AppChrome } from '../components/AppChrome';
@@ -18,13 +22,18 @@ import { ScreenShell } from '../components/ScreenShell';
 import { useAuth } from '../auth/AuthContext';
 import { useProfile } from '../profile/ProfileContext';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { useMobilePageInsets } from '../hooks/useMobilePageInsets';
 import { clearProfile } from '../profile/profileStorage';
-import { AppStackParamList } from '../navigation/types';
+import { AppStackParamList, MobileTabParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
-import { cardElevation, formStyles, webPointer } from '../theme/forms';
+import { formStyles, webPointer } from '../theme/forms';
 import { PASSWORD_HINT, PASSWORD_REGEX } from '../utils/passwordPolicy';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
+type Props =
+  | NativeStackScreenProps<AppStackParamList, 'Profile'>
+  | BottomTabScreenProps<MobileTabParamList, 'ProfileTab'>;
+
+const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
@@ -34,9 +43,12 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function ProfileScreen({ navigation }: Props) {
+  const appNavigation =
+    navigation as unknown as NativeStackNavigationProp<AppStackParamList>;
   const { applySessionToken, signOut } = useAuth();
   const { profile, isLoading, changeProfilePhoto, refreshProfile } = useProfile();
   const { isWideWeb } = useResponsiveLayout();
+  const { pagePaddingTop } = useMobilePageInsets();
 
   const [uploading, setUploading] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState('');
@@ -50,20 +62,22 @@ export function ProfileScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const username = profile?.username ?? '—';
-  const email = profile?.email ?? '—';
+  const username = profile?.username ?? '-';
+  const email = profile?.email ?? '-';
 
   const clearFeedback = () => {
     setError(null);
     setSuccess(null);
   };
 
-  const onChangePhoto = async () => {
+  const onChangePhoto = async (source: 'library' | 'camera') => {
     clearFeedback();
     setUploading(true);
     try {
-      await changeProfilePhoto();
-      setSuccess('Zdjęcie profilowe zostało zaktualizowane.');
+      const uploaded = await changeProfilePhoto(source);
+      if (uploaded) {
+        setSuccess('Zdjęcie profilowe zostało zaktualizowane.');
+      }
     } catch (err) {
       setError(errorMessage(err, 'Nie udało się zmienić zdjęcia'));
     } finally {
@@ -195,191 +209,212 @@ export function ProfileScreen({ navigation }: Props) {
     );
   }
 
-  return (
-    <AppChrome navigation={navigation} activeRoute="Profile" scroll>
-      <ScreenShell variant="profile" card={false} alignTop contentStyle={styles.shellContent}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Mój profil</Text>
+  const page = (
+    <View style={[styles.page, isWideWeb && styles.pageWide, { paddingTop: isNativeMobile ? pagePaddingTop : 0 }]}>
+      <Text style={styles.pageTitle}>Mój profil</Text>
 
-          <View style={[styles.topRow, isWideWeb && styles.topRowWide]}>
-            <View style={styles.avatarSection}>
-              <ProfileAvatar
-                username={username}
-                avatarBase64={profile?.avatarBase64}
-                size={isWideWeb ? 140 : 120}
-                editable
-                onPress={uploading ? undefined : onChangePhoto}
-              />
-              <Pressable
-                style={[
-                  formStyles.secondaryButton,
-                  styles.changePhotoButton,
-                  uploading && formStyles.buttonDisabled,
-                  webPointer,
-                ]}
-                onPress={onChangePhoto}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  <Text style={formStyles.secondaryButtonText}>Zmień zdjęcie</Text>
-                )}
-              </Pressable>
-            </View>
+      <View style={[styles.hero, isWideWeb && styles.heroWide]}>
+        <ProfileAvatar
+          username={username}
+          avatarBase64={profile?.avatarBase64}
+          size={isWideWeb ? 120 : 96}
+          onPress={uploading ? undefined : () => void onChangePhoto('library')}
+        />
+        <Text style={styles.heroName}>{username}</Text>
+        <Text style={styles.heroEmail}>{email}</Text>
 
-            <View style={styles.formsColumn}>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Nazwa użytkownika</Text>
-                <Text style={styles.currentValue}>{username}</Text>
-                <FormTextInput
-                  placeholder="Nowa nazwa"
-                  placeholderTextColor={colors.textMuted}
-                  value={usernameDraft}
-                  onChangeText={setUsernameDraft}
-                  autoCapitalize="none"
-                  editable={busyAction === null}
-                />
-                <Pressable
-                  style={[
-                    formStyles.primaryButton,
-                    busyAction === 'username' && formStyles.buttonDisabled,
-                    webPointer,
-                  ]}
-                  onPress={onSaveUsername}
-                  disabled={busyAction !== null}
-                >
-                  {busyAction === 'username' ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={formStyles.primaryButtonText}>Zapisz nazwę</Text>
-                  )}
-                </Pressable>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Email</Text>
-                <Text style={styles.currentValue}>{email}</Text>
-                <FormTextInput
-                  placeholder="Nowy email"
-                  placeholderTextColor={colors.textMuted}
-                  value={emailDraft}
-                  onChangeText={setEmailDraft}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  editable={busyAction === null}
-                />
-                <FormTextInput
-                  placeholder="Obecne hasło"
-                  placeholderTextColor={colors.textMuted}
-                  value={emailPassword}
-                  onChangeText={setEmailPassword}
-                  secureTextEntry
-                  editable={busyAction === null}
-                />
-                <Pressable
-                  style={[
-                    formStyles.primaryButton,
-                    busyAction === 'email' && formStyles.buttonDisabled,
-                    webPointer,
-                  ]}
-                  onPress={onSaveEmail}
-                  disabled={busyAction !== null}
-                >
-                  {busyAction === 'email' ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={formStyles.primaryButtonText}>Zapisz email</Text>
-                  )}
-                </Pressable>
-              </View>
-            </View>
-          </View>
-
-          <View style={[styles.sectionGrid, isWideWeb && styles.sectionGridWide]}>
-            <View style={[styles.section, styles.sectionInGrid]}>
-              <Text style={styles.sectionTitle}>Hasło</Text>
-              <FormTextInput
-                placeholder="Obecne hasło"
-                placeholderTextColor={colors.textMuted}
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                secureTextEntry
-                editable={busyAction === null}
-              />
-              <FormTextInput
-                placeholder="Nowe hasło"
-                placeholderTextColor={colors.textMuted}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry
-                editable={busyAction === null}
-              />
-              <FormTextInput
-                placeholder="Powtórz nowe hasło"
-                placeholderTextColor={colors.textMuted}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                editable={busyAction === null}
-              />
-              <Text style={styles.hint}>{PASSWORD_HINT}</Text>
-              <Pressable
-                style={[
-                  formStyles.primaryButton,
-                  busyAction === 'password' && formStyles.buttonDisabled,
-                  webPointer,
-                ]}
-                onPress={onSavePassword}
-                disabled={busyAction !== null}
-              >
-                {busyAction === 'password' ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={formStyles.primaryButtonText}>Zapisz hasło</Text>
-                )}
-              </Pressable>
-            </View>
-
-            <View style={[styles.section, styles.sectionInGrid, styles.dangerSection]}>
-              <Text style={styles.sectionTitle}>Usuń konto</Text>
-              <Text style={styles.hint}>Operacja jest nieodwracalna. Wymagane jest obecne hasło.</Text>
-              <FormTextInput
-                placeholder="Hasło do potwierdzenia"
-                placeholderTextColor={colors.textMuted}
-                value={deletePassword}
-                onChangeText={setDeletePassword}
-                secureTextEntry
-                editable={busyAction === null}
-              />
-              <Pressable
-                style={[
-                  styles.dangerButton,
-                  busyAction === 'delete' && formStyles.buttonDisabled,
-                  webPointer,
-                ]}
-                onPress={onDeleteAccount}
-                disabled={busyAction !== null}
-              >
-                {busyAction === 'delete' ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.dangerButtonText}>Usuń konto</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-
-          {success ? <Text style={formStyles.success}>{success}</Text> : null}
-          {error ? <Text style={formStyles.error}>{error}</Text> : null}
-
-          {!isWideWeb ? (
-            <Pressable style={[styles.linkButton, webPointer]} onPress={() => navigation.goBack()}>
-              <Text style={formStyles.link}>Wróć</Text>
+        <View style={styles.photoActions}>
+          <Pressable
+            style={[
+              formStyles.secondaryButton,
+              styles.photoActionButton,
+              uploading && formStyles.buttonDisabled,
+              webPointer,
+            ]}
+            onPress={() => void onChangePhoto('library')}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <Text style={formStyles.secondaryButtonText}>Galeria</Text>
+            )}
+          </Pressable>
+          {Platform.OS !== 'web' ? (
+            <Pressable
+              style={[
+                formStyles.secondaryButton,
+                styles.photoActionButton,
+                uploading && formStyles.buttonDisabled,
+                webPointer,
+              ]}
+              onPress={() => void onChangePhoto('camera')}
+              disabled={uploading}
+            >
+              <Text style={formStyles.secondaryButtonText}>Aparat</Text>
             </Pressable>
           ) : null}
         </View>
-      </ScreenShell>
+        <Text style={styles.photoHint}>Po wyborze zdjęcia przytnij je do kwadratu.</Text>
+      </View>
+
+      <View style={[styles.sections, isWideWeb && styles.sectionsWide]}>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Nazwa użytkownika</Text>
+          <FormTextInput
+            placeholder="Nowa nazwa"
+            placeholderTextColor={colors.textMuted}
+            value={usernameDraft}
+            onChangeText={setUsernameDraft}
+            autoCapitalize="none"
+            editable={busyAction === null}
+          />
+          <Pressable
+            style={[
+              formStyles.primaryButton,
+              busyAction === 'username' && formStyles.buttonDisabled,
+              webPointer,
+            ]}
+            onPress={onSaveUsername}
+            disabled={busyAction !== null}
+          >
+            {busyAction === 'username' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={formStyles.primaryButtonText}>Zapisz nazwę</Text>
+            )}
+          </Pressable>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Email</Text>
+          <FormTextInput
+            placeholder="Nowy email"
+            placeholderTextColor={colors.textMuted}
+            value={emailDraft}
+            onChangeText={setEmailDraft}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            editable={busyAction === null}
+          />
+          <FormTextInput
+            placeholder="Obecne hasło"
+            placeholderTextColor={colors.textMuted}
+            value={emailPassword}
+            onChangeText={setEmailPassword}
+            secureTextEntry
+            editable={busyAction === null}
+          />
+          <Pressable
+            style={[
+              formStyles.primaryButton,
+              busyAction === 'email' && formStyles.buttonDisabled,
+              webPointer,
+            ]}
+            onPress={onSaveEmail}
+            disabled={busyAction !== null}
+          >
+            {busyAction === 'email' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={formStyles.primaryButtonText}>Zapisz email</Text>
+            )}
+          </Pressable>
+        </View>
+
+        <View style={[styles.sectionCard, isWideWeb && styles.sectionCardHalf]}>
+          <Text style={styles.sectionTitle}>Hasło</Text>
+          <FormTextInput
+            placeholder="Obecne hasło"
+            placeholderTextColor={colors.textMuted}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry
+            editable={busyAction === null}
+          />
+          <FormTextInput
+            placeholder="Nowe hasło"
+            placeholderTextColor={colors.textMuted}
+            value={newPassword}
+            onChangeText={setNewPassword}
+            secureTextEntry
+            editable={busyAction === null}
+          />
+          <FormTextInput
+            placeholder="Powtórz nowe hasło"
+            placeholderTextColor={colors.textMuted}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            editable={busyAction === null}
+          />
+          <Text style={styles.hint}>{PASSWORD_HINT}</Text>
+          <Pressable
+            style={[
+              formStyles.primaryButton,
+              busyAction === 'password' && formStyles.buttonDisabled,
+              webPointer,
+            ]}
+            onPress={onSavePassword}
+            disabled={busyAction !== null}
+          >
+            {busyAction === 'password' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={formStyles.primaryButtonText}>Zapisz hasło</Text>
+            )}
+          </Pressable>
+        </View>
+
+        <View style={[styles.sectionCard, styles.dangerSection, isWideWeb && styles.sectionCardHalf]}>
+          <Text style={styles.sectionTitle}>Usuń konto</Text>
+          <Text style={styles.hint}>Operacja jest nieodwracalna. Wymagane jest obecne hasło.</Text>
+          <FormTextInput
+            placeholder="Hasło do potwierdzenia"
+            placeholderTextColor={colors.textMuted}
+            value={deletePassword}
+            onChangeText={setDeletePassword}
+            secureTextEntry
+            editable={busyAction === null}
+          />
+          <Pressable
+            style={[
+              styles.dangerButton,
+              busyAction === 'delete' && formStyles.buttonDisabled,
+              webPointer,
+            ]}
+            onPress={onDeleteAccount}
+            disabled={busyAction !== null}
+          >
+            {busyAction === 'delete' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.dangerButtonText}>Usuń konto</Text>
+            )}
+          </Pressable>
+        </View>
+      </View>
+
+      {success ? <Text style={formStyles.success}>{success}</Text> : null}
+      {error ? <Text style={formStyles.error}>{error}</Text> : null}
+
+      {!isWideWeb && Platform.OS === 'web' ? (
+        <Pressable style={[styles.linkButton, webPointer]} onPress={() => navigation.goBack()}>
+          <Text style={formStyles.link}>Wróć</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <AppChrome navigation={appNavigation} activeRoute="Profile" scroll>
+      {isNativeMobile ? (
+        page
+      ) : (
+        <ScreenShell variant="profile" card={false} alignTop contentStyle={styles.shellContent}>
+          {page}
+        </ScreenShell>
+      )}
     </AppChrome>
   );
 }
@@ -395,81 +430,97 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 960,
   },
-  card: {
+  page: {
     width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...cardElevation,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
+  pageWide: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.text,
     marginBottom: 20,
   },
-  topRow: {
-    gap: 20,
-  },
-  topRowWide: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  avatarSection: {
+  hero: {
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 24,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  changePhotoButton: {
-    minWidth: 180,
+  heroWide: {
+    marginBottom: 28,
   },
-  formsColumn: {
+  heroName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 4,
+  },
+  heroEmail: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  photoActions: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+    maxWidth: 360,
+    marginTop: 8,
+  },
+  photoActionButton: {
     flex: 1,
     minWidth: 0,
   },
-  sectionGrid: {
+  photoHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 16,
+    maxWidth: 300,
+  },
+  sections: {
+    gap: 12,
+  },
+  sectionsWide: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    alignItems: 'flex-start',
+  },
+  sectionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
     gap: 0,
   },
-  sectionGridWide: {
-    flexDirection: 'row',
-    gap: 20,
-    alignItems: 'flex-start',
-  },
-  section: {
-    marginBottom: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  sectionInGrid: {
+  sectionCardHalf: {
     flex: 1,
-    minWidth: 0,
-  },
-  dangerSection: {
-    backgroundColor: colors.dangerBg,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderTopColor: '#F5D0D0',
+    minWidth: 280,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
-  },
-  currentValue: {
-    fontSize: 15,
-    color: colors.textMuted,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   hint: {
     fontSize: 12,
     color: colors.textMuted,
     marginBottom: 10,
     lineHeight: 16,
+  },
+  dangerSection: {
+    backgroundColor: colors.dangerBg,
+    borderColor: '#F5D0D0',
   },
   dangerButton: {
     backgroundColor: colors.error,
@@ -482,7 +533,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   linkButton: {
-    marginTop: 4,
+    marginTop: 16,
     alignItems: 'center',
   },
 });

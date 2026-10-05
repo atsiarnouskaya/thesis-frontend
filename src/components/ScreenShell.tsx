@@ -18,7 +18,7 @@ type Props = {
   scroll?: boolean;
   card?: boolean;
   alignTop?: boolean;
-  contentStyle?: ViewStyle;
+  contentStyle?: ViewStyle | ViewStyle[];
 };
 
 export function ScreenShell({
@@ -34,13 +34,16 @@ export function ScreenShell({
   const maxWidth =
     variant === 'auth' ? authCardMaxWidth : variant === 'profile' ? profileMaxWidth : contentMaxWidth;
 
+  const showCard = card && !isWeb;
+
   const inner = (
     <View
       style={[
         styles.inner,
+        isWeb && styles.innerWeb,
         { maxWidth },
-        card && styles.card,
-        card && cardElevation,
+        showCard && styles.card,
+        showCard && cardElevation,
         contentStyle,
       ]}
     >
@@ -67,6 +70,7 @@ export function ScreenShell({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    width: '100%',
     backgroundColor: colors.background,
   },
   centered: {
@@ -75,8 +79,8 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   centeredWeb: {
-    paddingVertical: 48,
-    paddingHorizontal: 32,
+    padding: 0,
+    alignItems: 'center',
   },
   alignTop: {
     justifyContent: 'flex-start',
@@ -88,11 +92,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContentWeb: {
-    paddingVertical: 40,
-    paddingHorizontal: 32,
+    flexGrow: 1,
+    padding: 0,
+    alignItems: 'center',
   },
   inner: {
     width: '100%',
+  },
+  innerWeb: {
+    alignSelf: 'center',
   },
   card: {
     backgroundColor: colors.surface,

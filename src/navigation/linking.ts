@@ -1,5 +1,8 @@
+import { Platform } from 'react-native';
 import { LinkingOptions } from '@react-navigation/native';
-import { AppStackParamList } from './types';
+import { AppStackParamList, RootNavigationParamList } from './types';
+
+const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
 
 export function getLinkingPrefixes(): string[] {
   const prefixes: string[] = ['fridge://'];
@@ -16,12 +19,43 @@ export function getLinkingPrefixes(): string[] {
   return [...new Set(prefixes)];
 }
 
-export function createAppLinking(): LinkingOptions<AppStackParamList> {
+export function createAppLinking(): LinkingOptions<RootNavigationParamList> {
+  if (isNativeMobile) {
+    return {
+      prefixes: getLinkingPrefixes(),
+      config: {
+        screens: {
+          HouseholdsTab: {
+            screens: {
+              HouseholdList: {
+                path: 'join',
+                parse: {
+                  inviteCode: (value: string) => decodeURIComponent(value).trim().toUpperCase(),
+                },
+              },
+              HouseholdDetail: 'household/:householdId',
+              IngredientList: 'household/:householdId/ingredients',
+              IngredientDetail: 'household/:householdId/ingredients/:ingredientId',
+              IngredientForm: 'household/:householdId/ingredients/form',
+              BarcodeScan: 'household/:householdId/ingredients/barcode/scan',
+              BarcodeSearch: 'household/:householdId/ingredients/barcode',
+              StatisticsList: 'household/:householdId/statistics',
+              StatisticsChart: 'household/:householdId/statistics/:ingredientName',
+              ShoppingLists: 'household/:householdId/shopping-lists',
+              ShoppingListForm: 'household/:householdId/shopping-lists/form',
+              ShoppingListDetail: 'household/:householdId/shopping-lists/:shoppingListId',
+            },
+          },
+          ProfileTab: 'profile',
+        },
+      },
+    };
+  }
+
   return {
     prefixes: getLinkingPrefixes(),
     config: {
       screens: {
-        Home: '',
         Households: {
           path: 'join',
           parse: {
@@ -29,8 +63,18 @@ export function createAppLinking(): LinkingOptions<AppStackParamList> {
           },
         },
         HouseholdDetail: 'household/:householdId',
+        IngredientList: 'household/:householdId/ingredients',
+        IngredientDetail: 'household/:householdId/ingredients/:ingredientId',
+        IngredientForm: 'household/:householdId/ingredients/form',
+        BarcodeScan: 'household/:householdId/ingredients/barcode/scan',
+        BarcodeSearch: 'household/:householdId/ingredients/barcode',
+        StatisticsList: 'household/:householdId/statistics',
+        StatisticsChart: 'household/:householdId/statistics/:ingredientName',
+        ShoppingLists: 'household/:householdId/shopping-lists',
+        ShoppingListForm: 'household/:householdId/shopping-lists/form',
+        ShoppingListDetail: 'household/:householdId/shopping-lists/:shoppingListId',
         Profile: 'profile',
       },
     },
-  };
+  } satisfies LinkingOptions<AppStackParamList>;
 }

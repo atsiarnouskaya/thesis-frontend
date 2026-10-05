@@ -1,5 +1,8 @@
 import { API_URL } from '../config/env';
+import { notifyUnauthorizedSession } from '../auth/unauthorizedSession';
 import { getToken } from '../auth/tokenStorage';
+
+const PUBLIC_AUTH_PATHS = new Set(['/auth/login', '/auth/register']);
 
 export class ApiError extends Error {
   constructor(
@@ -16,6 +19,28 @@ type RequestOptions = {
   body?: unknown;
   auth?: boolean;
 };
+
+type ApiResponseErrorOptions = {
+  path?: string;
+  sessionProtected?: boolean;
+};
+
+export function throwApiErrorFromResponse(
+  status: number,
+  bodyText: string,
+  options: ApiResponseErrorOptions = {},
+): never {
+  const shouldEndSession =
+    status === 401 &&
+    (options.sessionProtected === true ||
+      (options.path != null && !PUBLIC_AUTH_PATHS.has(options.path)));
+
+  if (shouldEndSession) {
+    notifyUnauthorizedSession();
+  }
+
+  throw new ApiError(bodyText || `Request failed (${status})`, status);
+}
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
@@ -42,7 +67,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const text = await response.text();
 
   if (!response.ok) {
-    throw new ApiError(text || `Request failed (${response.status})`, response.status);
+    throwApiErrorFromResponse(response.status, text, {
+      path,
+      sessionProtected: options.auth === true,
+    });
   }
 
   if (!text) {

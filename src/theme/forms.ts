@@ -72,14 +72,19 @@ export const formStyles = StyleSheet.create({
   primaryButton: {
     backgroundColor: colors.primary,
     borderRadius: 10,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary,
     ...webPointer,
   },
   primaryButtonText: {
     color: '#fff',
     fontWeight: '700',
     fontSize: 16,
+    lineHeight: 20,
   },
   secondaryButton: {
     borderWidth: 1,
@@ -88,12 +93,15 @@ export const formStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.surface,
     ...webPointer,
   },
   secondaryButtonText: {
     color: colors.primary,
     fontWeight: '700',
+    fontSize: 16,
+    lineHeight: 20,
   },
   buttonDisabled: {
     opacity: 0.7,

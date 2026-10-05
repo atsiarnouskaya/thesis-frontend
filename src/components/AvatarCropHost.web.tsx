@@ -74,7 +74,7 @@ export function AvatarCropHost() {
       <View style={styles.backdrop}>
         <View style={styles.dialog}>
           <Text style={styles.title}>Przytnij zdjęcie profilowe</Text>
-          <Text style={styles.subtitle}>Przesuń i powiększ — na avatarze widać tylko kwadrat w środku.</Text>
+          <Text style={styles.subtitle}>Przesuń i powiększ - na avatarze widać tylko kwadrat w środku.</Text>
 
           <View style={styles.cropWrapper}>
             {session ? (

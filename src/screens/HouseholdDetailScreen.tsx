@@ -1,12 +1,18 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
+  ViewStyle,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   acceptJoinRequest,
@@ -16,14 +22,19 @@ import {
   Household,
   HouseholdMember,
   JoinRequest,
-  mergeInvitation,
-  regenerateHouseholdInvitation,
   rejectJoinRequest,
 } from '../api/household';
 import { ApiError } from '../api/client';
+import { AppPageFrame } from '../components/AppPageFrame';
 import { AppChrome } from '../components/AppChrome';
 import { HouseholdJoinQr } from '../components/HouseholdJoinQr';
 import { ScreenShell } from '../components/ScreenShell';
+import {
+  HouseholdDetailTab,
+} from '../household/HouseholdDetailTabBar';
+import { HouseholdSectionsLayout } from '../household/HouseholdSectionsLayout';
+import { HouseholdIngredientsPanel } from '../household/HouseholdIngredientsPanel';
+import { HouseholdSettingsPanel } from '../household/HouseholdSettingsPanel';
 import {
   formatInstant,
   invitationExpiryLabel,
@@ -32,12 +43,20 @@ import {
 } from '../household/householdFormat';
 import { buildHouseholdJoinUrl } from '../household/joinLink';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
-import { AppStackParamList } from '../navigation/types';
+import { useMobilePageInsets } from '../hooks/useMobilePageInsets';
+import { AppStackParamList, HouseholdStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
 import { copyTextToClipboard } from '../utils/clipboard';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'HouseholdDetail'>;
+type Props =
+  | NativeStackScreenProps<HouseholdStackParamList, 'HouseholdDetail'>
+  | NativeStackScreenProps<AppStackParamList, 'HouseholdDetail'>;
+
+const stableScrollbarStyle =
+  Platform.OS === 'web'
+    ? ({ scrollbarGutter: 'stable' } as unknown as ViewStyle)
+    : undefined;
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
@@ -47,16 +66,23 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function HouseholdDetailScreen({ navigation, route }: Props) {
-  const { householdId } = route.params;
-  const { isWideWeb } = useResponsiveLayout();
+  const { householdId, ingredientStatusFilter, section } = route.params;
+  const appNavigation = navigation as NativeStackNavigationProp<AppStackParamList>;
+  const householdNavigation =
+    navigation as NativeStackNavigationProp<HouseholdStackParamList>;
+  const { isWideWeb, height: viewportHeight } = useResponsiveLayout();
+  const { pagePaddingTop } = useMobilePageInsets();
+  const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
+  /** Stała wysokość karty na desktopie - treść zakładek przewija się wewnątrz. */
+  const cardHeight = viewportHeight - 128;
 
+  const [activeTab, setActiveTab] = useState<HouseholdDetailTab>(section ?? 'products');
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [pendingJoinRequests, setPendingJoinRequests] = useState<JoinRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copyHint, setCopyHint] = useState<string | null>(null);
-  const [regenerating, setRegenerating] = useState(false);
   const [actingRequestId, setActingRequestId] = useState<string | null>(null);
 
   const invitation = household?.invitationWithQr;
@@ -103,25 +129,6 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
     }
   };
 
-  const onRegenerateInvite = async () => {
-    if (!household || household.myRole !== 'OWNER') {
-      return;
-    }
-
-    setError(null);
-    setCopyHint(null);
-    setRegenerating(true);
-    try {
-      const nextInvitation = await regenerateHouseholdInvitation(household.id);
-      setHousehold(mergeInvitation(household, nextInvitation));
-      setCopyHint('Wygenerowano nowy kod zaproszenia.');
-    } catch (err) {
-      setError(errorMessage(err, 'Nie udało się wygenerować nowego kodu'));
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
   const onAcceptJoinRequest = async (requestId: string) => {
     setError(null);
     setCopyHint(null);
@@ -153,9 +160,197 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
     }
   };
 
+  const onSectionChange = (tab: HouseholdDetailTab) => {
+    if (!household) {
+      return;
+    }
+    if (tab === 'statistics') {
+      appNavigation.navigate('StatisticsList', {
+        householdId: household.id,
+        householdName: household.name,
+      });
+      return;
+    }
+    if (tab === 'shoppingLists') {
+      appNavigation.navigate('ShoppingLists', {
+        householdId: household.id,
+        householdName: household.name,
+      });
+      return;
+    }
+    setActiveTab(tab);
+  };
+
+  const renderActiveTab = () => (
+    <>
+      {activeTab === 'products' ? (
+        <HouseholdIngredientsPanel
+          householdId={household!.id}
+          householdName={household!.name}
+          navigation={householdNavigation}
+          variant="embedded"
+          initialStatusFilter={ingredientStatusFilter}
+          onStatusFilterChange={(filter) => {
+            householdNavigation.setParams({ ingredientStatusFilter: filter });
+          }}
+        />
+      ) : null}
+
+      {activeTab === 'settings' ? (
+        <HouseholdSettingsPanel
+          household={household!}
+          onUpdated={setHousehold}
+          onError={setError}
+          onHint={setCopyHint}
+        />
+      ) : null}
+
+      {activeTab === 'settings' ? (
+        <View>
+          <View style={[styles.inviteBox, expired && styles.inviteBoxExpired]}>
+            <Text style={styles.inviteLabel}>Kod i QR zaproszenia</Text>
+
+            <View
+              style={[
+                styles.inviteContent,
+                isWideWeb && styles.inviteContentWide,
+                isNativeMobile && styles.inviteContentMobile,
+              ]}
+            >
+              <HouseholdJoinQr inviteCode={invitation!.code} size={isWideWeb ? 220 : 200} />
+
+              <View style={[styles.inviteTextCol, isNativeMobile && styles.inviteTextColMobile]}>
+                <Text style={[styles.inviteCode, isNativeMobile && styles.inviteCodeMobile]}>
+                  {invitation!.code}
+                </Text>
+                <Text style={[styles.expiryText, expired && styles.expiryExpired]}>
+                  {invitationExpiryLabel(invitation!.expiresAt)}
+                </Text>
+                <Text style={styles.inviteHint}>
+                  Udostępnij QR lub link - po zalogowaniu użytkownik wyśle prośbę o dołączenie.
+                  Właściciel musi ją zaakceptować w tej sekcji.
+                  {household!.myRole === 'OWNER'
+                    ? ' Nowy kod wygenerujesz wyżej.'
+                    : ''}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.inviteActions, isWideWeb && styles.inviteActionsWide]}>
+              <Pressable
+                style={[
+                  formStyles.secondaryButton,
+                  styles.inviteActionBtn,
+                  isWideWeb && styles.inviteActionBtnWide,
+                  webPointer,
+                ]}
+                onPress={() => void onCopyInvite()}
+              >
+                <Text style={formStyles.secondaryButtonText}>Kopiuj link dołączenia</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {household!.myRole === 'OWNER' && pendingJoinRequests.length > 0 ? (
+            <>
+              <Text style={styles.sectionTitle}>
+                Prośby o dołączenie ({pendingJoinRequests.length})
+              </Text>
+              <View
+                style={[styles.pendingRequestsList, isWideWeb && styles.pendingRequestsListWide]}
+              >
+                {pendingJoinRequests.map((request) => (
+                  <View
+                    key={request.id}
+                    style={[styles.pendingRequestRow, isWideWeb && styles.pendingRequestRowWide]}
+                  >
+                    <View style={styles.memberMain}>
+                      <Text style={styles.memberName}>{request.displayName}</Text>
+                      <Text style={styles.memberEmail}>{request.email}</Text>
+                      <Text style={styles.pendingRequestMeta}>
+                        {formatInstant(request.requestedAt)}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.pendingRequestActions,
+                        isWideWeb && styles.pendingRequestActionsWide,
+                      ]}
+                    >
+                      <Pressable
+                        style={[
+                          formStyles.primaryButton,
+                          styles.pendingActionBtn,
+                          isWideWeb && styles.pendingActionBtnWide,
+                          actingRequestId === request.id && formStyles.buttonDisabled,
+                          webPointer,
+                        ]}
+                        onPress={() => void onAcceptJoinRequest(request.id)}
+                        disabled={actingRequestId !== null}
+                      >
+                        {actingRequestId === request.id ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={formStyles.primaryButtonText}>Akceptuj</Text>
+                        )}
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          formStyles.secondaryButton,
+                          styles.pendingActionBtn,
+                          isWideWeb && styles.pendingActionBtnWide,
+                          actingRequestId === request.id && formStyles.buttonDisabled,
+                          webPointer,
+                        ]}
+                        onPress={() => void onRejectJoinRequest(request.id)}
+                        disabled={actingRequestId !== null}
+                      >
+                        <Text style={formStyles.secondaryButtonText}>Odrzuć</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : household!.myRole === 'OWNER' ? (
+            <Text style={styles.emptyTabHint}>Brak oczekujących próśb o dołączenie.</Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {activeTab === 'settings' ? (
+        <View>
+          <Text style={styles.sectionTitle}>Członkowie lodówki</Text>
+          <Text style={styles.tabLead}>
+            {members.length === 1
+              ? '1 osoba ma dostęp do tej lodówki.'
+              : `${members.length} osób ma dostęp do tej lodówki.`}
+          </Text>
+          <View style={[styles.membersList, isWideWeb && styles.membersListWide]}>
+            {members.map((member) => (
+              <View
+                key={member.id}
+                style={[styles.memberRow, isWideWeb && styles.memberRowWide]}
+              >
+                <View style={styles.memberMain}>
+                  <Text style={styles.memberName}>{member.displayName}</Text>
+                  <Text style={styles.memberEmail}>{member.email}</Text>
+                </View>
+                <View style={styles.memberBadge}>
+                  <Text style={styles.memberBadgeText}>{roleLabel(member.role)}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+    </>
+  );
+
   if (isLoading && !household) {
     return (
-      <AppChrome navigation={navigation} activeRoute="Households">
+      <AppChrome navigation={appNavigation} activeRoute="Households">
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -163,147 +358,72 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  return (
-    <AppChrome navigation={navigation} activeRoute="Households" scroll>
-      <ScreenShell variant="app" card={false} alignTop contentStyle={styles.shell}>
-        <View style={styles.card}>
-          {!isWideWeb ? (
-            <Pressable
-              onPress={() => navigation.navigate('Households')}
-              style={[styles.backLink, webPointer]}
-            >
-              <Text style={formStyles.link}>← Wszystkie lodówki</Text>
-            </Pressable>
-          ) : null}
+  const detailContent = (
+    <>
+      {error ? <Text style={formStyles.error}>{error}</Text> : null}
+      {copyHint ? <Text style={styles.copyHint}>{copyHint}</Text> : null}
 
-          {error ? <Text style={formStyles.error}>{error}</Text> : null}
-
-          {household && invitation ? (
-            <>
+      {household && invitation ? (
+        <View style={styles.cardBodyWide}>
+          <HouseholdSectionsLayout activeTab={activeTab} onChange={onSectionChange}>
+            <View style={[styles.tabPanel, isWideWeb && styles.tabPanelWide]}>
+              <View style={styles.mobileHeader}>
               <Text style={styles.title}>{household.name}</Text>
-              <Text style={styles.meta}>
-                Twoja rola: {roleLabel(household.myRole)} · utworzono{' '}
-                {formatInstant(household.createdAt)}
-              </Text>
-
-              <View style={[styles.inviteBox, expired && styles.inviteBoxExpired]}>
-                <Text style={styles.inviteLabel}>Zaproszenie</Text>
-
-                <View style={[styles.inviteContent, isWideWeb && styles.inviteContentWide]}>
-                  <HouseholdJoinQr inviteCode={invitation.code} size={200} />
-
-                  <View style={styles.inviteTextCol}>
-                    <Text style={styles.inviteCode}>{invitation.code}</Text>
-                    <Text style={[styles.expiryText, expired && styles.expiryExpired]}>
-                      {invitationExpiryLabel(invitation.expiresAt)}
-                    </Text>
-                    <Text style={styles.inviteHint}>
-                      Zeskanuj QR — otworzy się strona dołączenia w aplikacji. Po zalogowaniu użytkownik
-                      wyśle prośbę o dołączenie; Ty jako właściciel musisz ją zaakceptować.
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.inviteActions}>
-                  <Pressable
-                    style={[formStyles.secondaryButton, styles.inviteActionBtn, webPointer]}
-                    onPress={() => void onCopyInvite()}
-                  >
-                    <Text style={formStyles.secondaryButtonText}>Kopiuj link dołączenia</Text>
-                  </Pressable>
-
-                  {household.myRole === 'OWNER' ? (
-                    <Pressable
-                      style={[
-                        formStyles.primaryButton,
-                        styles.inviteActionBtn,
-                        regenerating && formStyles.buttonDisabled,
-                        webPointer,
-                      ]}
-                      onPress={() => void onRegenerateInvite()}
-                      disabled={regenerating}
-                    >
-                      {regenerating ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <Text style={formStyles.primaryButtonText}>Nowy kod i QR</Text>
-                      )}
-                    </Pressable>
-                  ) : null}
-                </View>
-
-                {copyHint ? <Text style={styles.copyHint}>{copyHint}</Text> : null}
-              </View>
-
-              {household.myRole === 'OWNER' && pendingJoinRequests.length > 0 ? (
-                <>
-                  <Text style={styles.sectionTitle}>
-                    Prośby o dołączenie ({pendingJoinRequests.length})
-                  </Text>
-                  <View style={styles.pendingRequestsList}>
-                    {pendingJoinRequests.map((request) => (
-                      <View key={request.id} style={styles.pendingRequestRow}>
-                        <View style={styles.memberMain}>
-                          <Text style={styles.memberName}>{request.displayName}</Text>
-                          <Text style={styles.memberEmail}>{request.email}</Text>
-                          <Text style={styles.pendingRequestMeta}>
-                            {formatInstant(request.requestedAt)}
-                          </Text>
-                        </View>
-                        <View style={styles.pendingRequestActions}>
-                          <Pressable
-                            style={[
-                              formStyles.primaryButton,
-                              styles.pendingActionBtn,
-                              actingRequestId === request.id && formStyles.buttonDisabled,
-                              webPointer,
-                            ]}
-                            onPress={() => void onAcceptJoinRequest(request.id)}
-                            disabled={actingRequestId !== null}
-                          >
-                            {actingRequestId === request.id ? (
-                              <ActivityIndicator color="#fff" />
-                            ) : (
-                              <Text style={formStyles.primaryButtonText}>Akceptuj</Text>
-                            )}
-                          </Pressable>
-                          <Pressable
-                            style={[
-                              formStyles.secondaryButton,
-                              styles.pendingActionBtn,
-                              actingRequestId === request.id && formStyles.buttonDisabled,
-                              webPointer,
-                            ]}
-                            onPress={() => void onRejectJoinRequest(request.id)}
-                            disabled={actingRequestId !== null}
-                          >
-                            <Text style={formStyles.secondaryButtonText}>Odrzuć</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                </>
+              {household.description ? (
+                <Text style={styles.description}>{household.description}</Text>
               ) : null}
-
-              <Text style={styles.sectionTitle}>Członkowie ({members.length})</Text>
-              <View style={[styles.membersList, isWideWeb && styles.membersListWide]}>
-                {members.map((member) => (
-                  <View key={member.id} style={styles.memberRow}>
-                    <View style={styles.memberMain}>
-                      <Text style={styles.memberName}>{member.displayName}</Text>
-                      <Text style={styles.memberEmail}>{member.email}</Text>
-                    </View>
-                    <View style={styles.memberBadge}>
-                      <Text style={styles.memberBadgeText}>{roleLabel(member.role)}</Text>
-                    </View>
-                  </View>
-                ))}
+              <View style={styles.mobileMetaRow}>
+                <View style={styles.mobileRolePill}>
+                  <Text style={styles.mobileRolePillText}>{roleLabel(household.myRole)}</Text>
+                </View>
+                <Text style={styles.metaCompact}>
+                  Utworzono {formatInstant(household.createdAt)}
+                </Text>
               </View>
-            </>
-          ) : null}
+            </View>
+              {isWideWeb ? (
+                <ScrollView
+                  style={[styles.tabPanelScroll, stableScrollbarStyle]}
+                  contentContainerStyle={styles.tabPanelScrollContent}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                >
+                  {renderActiveTab()}
+                </ScrollView>
+              ) : (
+                renderActiveTab()
+              )}
+            </View>
+          </HouseholdSectionsLayout>
         </View>
-      </ScreenShell>
+      ) : null}
+    </>
+  );
+
+  return (
+    <AppChrome navigation={appNavigation} activeRoute="Households" scroll>
+      {isNativeMobile ? (
+        <View style={[styles.page, { paddingTop: pagePaddingTop }]}>{detailContent}</View>
+      ) : (
+        <ScreenShell
+          variant="app"
+          card={false}
+          alignTop
+          contentStyle={
+            isWideWeb
+              ? [styles.shell, styles.shellWide, styles.shellFill]
+              : styles.shell
+          }
+        >
+          <AppPageFrame
+            fill={isWideWeb}
+            style={isWideWeb ? [styles.frameWide, { height: cardHeight }] : undefined}
+          >
+            {detailContent}
+          </AppPageFrame>
+        </ScreenShell>
+      )}
     </AppChrome>
   );
 }
@@ -313,28 +433,161 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 880,
   },
+  shellWide: {
+    maxWidth: 1120,
+  },
+  shellFill: {
+    flex: 1,
+    minHeight: 0,
+  },
+  page: {
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
   },
-  card: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
+  frameWide: {
+    flexDirection: 'column',
+    overflow: 'hidden',
   },
-  backLink: {
-    marginBottom: 16,
-    alignSelf: 'flex-start',
+  cardBodyWide: {
+    flex: 1,
+    flexDirection: 'column',
+    minHeight: 0,
   },
-  title: {
-    fontSize: 26,
+  pageHeaderWide: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 24,
+    marginBottom: 28,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pageHeaderMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  breadcrumb: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginBottom: 4,
+  },
+  breadcrumbSep: {
+    color: colors.textMuted,
+  },
+  breadcrumbCurrent: {
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  titleWide: {
+    fontSize: 32,
     fontWeight: '800',
     color: colors.text,
+  },
+  descriptionWide: {
+    fontSize: 16,
+    color: colors.textMuted,
+    lineHeight: 22,
+    marginTop: 4,
+  },
+  metaWide: {
+    color: colors.textMuted,
+    fontSize: 15,
+  },
+  rolePill: {
+    backgroundColor: '#E8F5EE',
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+  },
+  rolePillText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  desktopLayout: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    flex: 1,
+    minHeight: 0,
+  },
+  tabPanel: {
+    alignSelf: 'center',
+    flex: 1,
+    maxWidth: 880,
+    minWidth: 0,
+    width: '100%',
+  },
+  tabPanelWide: {
+    flex: 1,
+    minHeight: 0,
+  },
+  tabPanelScroll: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+  },
+  tabPanelScrollContent: {
+    alignItems: 'stretch',
+    minWidth: '100%',
+    paddingBottom: 8,
+    width: '100%',
+  },
+  backLink: {
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  mobileHeader: {
+    gap: 8,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  mobileMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  mobileRolePill: {
+    backgroundColor: '#E8F5EE',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  mobileRolePillText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  metaCompact: {
+    flex: 1,
+    minWidth: 120,
+    color: colors.textMuted,
+    fontSize: 13,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  description: {
+    marginTop: 8,
+    fontSize: 15,
+    color: colors.textMuted,
+    lineHeight: 21,
   },
   meta: {
     marginTop: 8,
@@ -362,6 +615,9 @@ const styles = StyleSheet.create({
   inviteContent: {
     gap: 16,
   },
+  inviteContentMobile: {
+    alignItems: 'center',
+  },
   inviteContentWide: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -369,12 +625,19 @@ const styles = StyleSheet.create({
   inviteTextCol: {
     flex: 1,
     minWidth: 0,
+    width: '100%',
+  },
+  inviteTextColMobile: {
+    alignItems: 'center',
   },
   inviteCode: {
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: 4,
     color: colors.primary,
+  },
+  inviteCodeMobile: {
+    textAlign: 'center',
   },
   expiryText: {
     marginTop: 8,
@@ -395,10 +658,18 @@ const styles = StyleSheet.create({
     marginTop: 16,
     gap: 10,
   },
+  inviteActionsWide: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
   inviteActionBtn: {
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
     paddingHorizontal: 18,
-    minWidth: 220,
+    width: '100%',
+  },
+  inviteActionBtnWide: {
+    alignSelf: 'auto',
   },
   copyHint: {
     marginTop: 10,
@@ -410,11 +681,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  tabLead: {
+    marginBottom: 16,
+    color: colors.textMuted,
+    lineHeight: 20,
+  },
+  emptyTabHint: {
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   pendingRequestsList: {
     gap: 10,
-    marginBottom: 24,
+    marginTop: 8,
+  },
+  pendingRequestsListWide: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
   },
   pendingRequestRow: {
     borderWidth: 1,
@@ -424,18 +710,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFBEB',
     gap: 12,
   },
+  pendingRequestRowWide: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: '48%',
+    maxWidth: '48%',
+  },
   pendingRequestMeta: {
     marginTop: 4,
     fontSize: 12,
     color: colors.textMuted,
   },
   pendingRequestActions: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  pendingRequestActionsWide: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
   },
   pendingActionBtn: {
     paddingHorizontal: 16,
+    width: '100%',
+  },
+  pendingActionBtnWide: {
+    width: 'auto',
     minWidth: 120,
   },
   membersList: {
@@ -455,6 +754,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFCFA',
     flexGrow: 1,
     minWidth: 260,
+  },
+  memberRowWide: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: '31%',
+    maxWidth: '31%',
   },
   memberMain: {
     flex: 1,

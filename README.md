@@ -2,16 +2,17 @@
 
 Aplikacja React Native (Expo) podpięta pod auth-flow backendu Fridge:
 
-- `POST /auth/register` — `{ username, email, password }`
-- `POST /auth/login` — `{ email, password }` → JWT
+- `POST /auth/register` - `{ username, email, password }`
+- `POST /auth/login` - `{ email, password }` → JWT
 - JWT w `expo-secure-store` (iOS/Android) lub `localStorage` (Expo Web)
 - ekrany: Login, Rejestracja, Home, **Profil** + wylogowanie
-- `GET /me` — profil (username, email, avatar Base64)
-- **Lodówki (household):** `GET/POST /household`, `POST /household/join` (prośba, `JoinRequestResponse`), `GET /household/join-requests/mine`, `GET /household/{id}/join-requests`, `POST /household/join-requests/{id}/accept|reject`, `GET /household/{id}`, `GET /household/{id}/members`, `POST /household/regenerate-invitation/{id}` — odpowiedź z `invitationWithQr` (`code`, `qr` Base64, opcjonalnie `expiresAt`)
-- `PATCH /me/username` — `{ username }` → nowy JWT
-- `PATCH /me/email` — `{ email, currentPassword }` → nowy JWT
-- `PATCH /me/password` — `{ currentPassword, newPassword }` → nowy JWT
-- `DELETE /me` — `{ currentPassword }` — usuwa konto
+- `GET /me` - profil (username, email, avatar Base64)
+- **Lodówki (household):** `GET/POST /household`, `POST /household/join` (prośba, `JoinRequestResponse`), `GET /household/join-requests/mine`, `GET /household/{id}/join-requests`, `POST /household/join-requests/{id}/accept|reject`, `GET /household/{id}`, `GET /household/{id}/members`, `POST /household/regenerate-invitation/{id}` - odpowiedź z `invitationWithQr` (`code`, `qr` Base64, opcjonalnie `expiresAt`)
+- **Produkty:** `GET/POST /household/{id}/ingredients`, `GET/PUT/DELETE /household/{id}/ingredients/{ingredientId}` - pola: `name`, `purchasedAt`, `expiresAt`, `notes`
+- `PATCH /me/username` - `{ username }` → nowy JWT
+- `PATCH /me/email` - `{ email, currentPassword }` → nowy JWT
+- `PATCH /me/password` - `{ currentPassword, newPassword }` → nowy JWT
+- `DELETE /me` - `{ currentPassword }` - usuwa konto
 - profil w aplikacji: podgląd, zmiana avatara, edycja danych konta
 
 ## Wymagania
@@ -50,17 +51,17 @@ npm start
 
 Następnie:
 
-- `a` — Android emulator
-- `i` — iOS simulator
-- `w` — **przeglądarka (layout desktop od ~840px / sidebar od ~960px)**
+- `a` - Android emulator
+- `i` - iOS simulator
+- `w` - **przeglądarka (layout desktop od ~840px / sidebar od ~960px)**
 - zeskanuj QR kodem w Expo Go
 
 ## Test flow
 
-1. **Zarejestruj** użytkownika z opcjonalnym zdjęciem (hasło: min. 8 znaków, wielka/mała litera, cyfra, znak specjalny, np. `Haslo123!`) — po sukcesie jesteś od razu zalogowany.
-2. Na **Home** użyj **Moje lodówki** — utwórz gospodarstwo, dołącz kodem lub zobacz członków.
+1. **Zarejestruj** użytkownika z opcjonalnym zdjęciem (hasło: min. 8 znaków, wielka/mała litera, cyfra, znak specjalny, np. `Haslo123!`) - po sukcesie jesteś od razu zalogowany.
+2. Na **Home** użyj **Moje lodówki** - utwórz gospodarstwo, dołącz kodem lub zobacz członków.
 3. Wejdź w **Mój profil**, aby zmienić zdjęcie, nazwę, email, hasło lub usunąć konto.
-4. **Wyloguj** — wracasz do ekranu logowania.
+4. **Wyloguj** - wracasz do ekranu logowania.
 
 > **Profil:** `GET /me` zwraca JSON `{ username, email, profilePicture }` (avatar jako Base64, gdy jest w Minio). Aplikacja synchronizuje profil z API po logowaniu i po uploadzie zdjęcia; AsyncStorage trzyma ostatni znany stan offline.
 

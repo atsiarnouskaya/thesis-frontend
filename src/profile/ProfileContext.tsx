@@ -4,17 +4,18 @@ import {
   toStoredUserProfile,
   uploadProfilePicture,
 } from '../api/profile';
+import { ApiError } from '../api/client';
 import { getEmailFromJwt, getUsernameFromJwt } from '../auth/jwt';
 import { useAuth } from '../auth/AuthContext';
 import { loadProfile, saveProfile } from './profileStorage';
 import { UserProfile } from './profileTypes';
-import { pickAndCropProfileImage } from '../utils/pickProfileImage';
+import { pickProfileImageFromCamera, pickProfileImageFromLibrary } from '../utils/pickProfileImage';
 
 type ProfileContextValue = {
   profile: UserProfile | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
-  changeProfilePhoto: () => Promise<void>;
+  changeProfilePhoto: (source: 'library' | 'camera') => Promise<boolean>;
   uploadPhotoFromUri: (uri: string, fileName: string, mimeType: string) => Promise<void>;
 };
 
@@ -70,7 +71,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       try {
         await syncProfileFromApi();
         return;
-      } catch {
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          return;
+        }
         const email = getEmailFromJwt(token)?.trim().toLowerCase();
         const stored = email ? await loadProfile(email) : null;
         const fallback = profileFromJwtFallback(token, stored);
@@ -100,13 +104,17 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     [syncProfileFromApi],
   );
 
-  const changeProfilePhoto = useCallback(async () => {
-    const picked = await pickAndCropProfileImage();
+  const changeProfilePhoto = useCallback(async (source: 'library' | 'camera'): Promise<boolean> => {
+    const picked =
+      source === 'camera'
+        ? await pickProfileImageFromCamera()
+        : await pickProfileImageFromLibrary();
     if (!picked) {
-      return;
+      return false;
     }
 
     await uploadPhotoFromUri(picked.uri, picked.fileName, picked.mimeType);
+    return true;
   }, [uploadPhotoFromUri]);
 
   const value = useMemo(

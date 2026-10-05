@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -22,7 +23,8 @@ import { FormTextInput } from '../components/FormTextInput';
 import { ScreenShell } from '../components/ScreenShell';
 import { formatInstant, roleLabel } from '../household/householdFormat';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
-import { AppStackParamList } from '../navigation/types';
+import { useMobilePageInsets } from '../hooks/useMobilePageInsets';
+import { AppStackParamList, HouseholdStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
 
@@ -33,10 +35,15 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Households'>;
+type Props =
+  | NativeStackScreenProps<HouseholdStackParamList, 'HouseholdList'>
+  | NativeStackScreenProps<AppStackParamList, 'Households'>;
+
+const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
 
 export function HouseholdListScreen({ navigation, route }: Props) {
   const { isWideWeb } = useResponsiveLayout();
+  const { pagePaddingTop } = useMobilePageInsets();
   const [households, setHouseholds] = useState<Household[]>([]);
   const [pendingJoinRequests, setPendingJoinRequests] = useState<JoinRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,6 +51,7 @@ export function HouseholdListScreen({ navigation, route }: Props) {
   const [success, setSuccess] = useState<string | null>(null);
 
   const [createName, setCreateName] = useState('');
+  const [createDescription, setCreateDescription] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
 
@@ -80,8 +88,9 @@ export function HouseholdListScreen({ navigation, route }: Props) {
 
     setBusy('create');
     try {
-      const created = await createHousehold(createName);
+      const created = await createHousehold(createName, createDescription);
       setCreateName('');
+      setCreateDescription('');
       setSuccess(
         `Utworzono „${created.name}”. Kod: ${created.invitationWithQr.code}`,
       );
@@ -141,118 +150,135 @@ export function HouseholdListScreen({ navigation, route }: Props) {
     void runJoin(paramCode);
   }, [route.params?.inviteCode, runJoin]);
 
+  const page = (
+    <>
+      <Text style={[styles.pageTitle, !isNativeMobile && styles.pageTitleWeb]}>Lodówki</Text>
+      <Text style={styles.subtitle}>
+        Wspólne gospodarstwa domowe - utwórz własną lodówkę lub wyślij prośbę o dołączenie kodem od
+        właściciela.
+      </Text>
+
+      <View style={[styles.actionsRow, isWideWeb && styles.actionsRowWide]}>
+        <View style={styles.actionBox}>
+          <Text style={styles.actionTitle}>Nowa lodówka</Text>
+          <FormTextInput
+            placeholder="np. Dom, Wspólnota"
+            placeholderTextColor={colors.textMuted}
+            value={createName}
+            onChangeText={setCreateName}
+            editable={busy === null}
+          />
+          <FormTextInput
+            placeholder="Opis (opcjonalnie)"
+            placeholderTextColor={colors.textMuted}
+            value={createDescription}
+            onChangeText={setCreateDescription}
+            editable={busy === null}
+            multiline
+            numberOfLines={2}
+            style={styles.createDescriptionInput}
+          />
+          <Pressable
+            style={[
+              formStyles.primaryButton,
+              busy === 'create' && formStyles.buttonDisabled,
+              webPointer,
+            ]}
+            onPress={onCreate}
+            disabled={busy !== null}
+          >
+            {busy === 'create' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={formStyles.primaryButtonText}>Utwórz</Text>
+            )}
+          </Pressable>
+        </View>
+
+        <View style={styles.actionBox}>
+          <Text style={styles.actionTitle}>Dołącz kodem</Text>
+          <FormTextInput
+            placeholder="Kod 8 znaków"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="characters"
+            value={joinCode}
+            onChangeText={setJoinCode}
+            editable={busy === null}
+          />
+          <Pressable
+            style={[
+              formStyles.secondaryButton,
+              busy === 'join' && formStyles.buttonDisabled,
+              webPointer,
+            ]}
+            onPress={onJoin}
+            disabled={busy !== null}
+          >
+            {busy === 'join' ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <Text style={formStyles.secondaryButtonText}>Wyślij prośbę</Text>
+            )}
+          </Pressable>
+        </View>
+      </View>
+
+      {success ? <Text style={formStyles.success}>{success}</Text> : null}
+      {error ? <Text style={formStyles.error}>{error}</Text> : null}
+
+      {pendingJoinRequests.length > 0 ? (
+        <>
+          <Text style={styles.listHeading}>Oczekujące prośby</Text>
+          <View style={styles.pendingList}>
+            {pendingJoinRequests.map((request) => (
+              <View key={request.id} style={styles.pendingItem}>
+                <Text style={styles.pendingTitle}>{request.householdName}</Text>
+                <Text style={styles.pendingMeta}>
+                  Wysłano {formatInstant(request.requestedAt)} · czeka na akceptację właściciela
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      <Text style={styles.listHeading}>Twoje lodówki</Text>
+
+      {isLoading ? (
+        <ActivityIndicator color={colors.primary} style={styles.loader} />
+      ) : households.length === 0 ? (
+        <Text style={styles.empty}>Nie należysz jeszcze do żadnej lodówki.</Text>
+      ) : (
+        <View style={styles.list}>
+          {households.map((item) => (
+            <Pressable
+              key={item.id}
+              style={[styles.listItem, webPointer]}
+              onPress={() => navigation.navigate('HouseholdDetail', { householdId: item.id })}
+            >
+              <View style={styles.listItemMain}>
+                <Text style={styles.listItemTitle}>{item.name}</Text>
+                <Text style={styles.listItemMeta}>
+                  {roleLabel(item.myRole)} · od {formatInstant(item.createdAt)}
+                </Text>
+              </View>
+              <Text style={styles.listItemChevron}>→</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </>
+  );
+
   return (
     <AppChrome navigation={navigation} activeRoute="Households" scroll>
-      <ScreenShell variant="app" card={false} alignTop contentStyle={styles.shell}>
-        <View style={styles.card}>
-          <Text style={formStyles.brand}>Lodówki</Text>
-          <Text style={styles.subtitle}>
-            Wspólne gospodarstwa domowe — utwórz własną lodówkę lub wyślij prośbę o dołączenie kodem od właściciela.
-          </Text>
-
-          <View style={[styles.actionsRow, isWideWeb && styles.actionsRowWide]}>
-            <View style={styles.actionBox}>
-              <Text style={styles.actionTitle}>Nowa lodówka</Text>
-              <FormTextInput
-                placeholder="np. Dom, Wspólnota"
-                placeholderTextColor={colors.textMuted}
-                value={createName}
-                onChangeText={setCreateName}
-                editable={busy === null}
-              />
-              <Pressable
-                style={[
-                  formStyles.primaryButton,
-                  busy === 'create' && formStyles.buttonDisabled,
-                  webPointer,
-                ]}
-                onPress={onCreate}
-                disabled={busy !== null}
-              >
-                {busy === 'create' ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={formStyles.primaryButtonText}>Utwórz</Text>
-                )}
-              </Pressable>
-            </View>
-
-            <View style={styles.actionBox}>
-              <Text style={styles.actionTitle}>Dołącz kodem</Text>
-              <FormTextInput
-                placeholder="Kod 8 znaków"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="characters"
-                value={joinCode}
-                onChangeText={setJoinCode}
-                editable={busy === null}
-              />
-              <Pressable
-                style={[
-                  formStyles.secondaryButton,
-                  busy === 'join' && formStyles.buttonDisabled,
-                  webPointer,
-                ]}
-                onPress={onJoin}
-                disabled={busy !== null}
-              >
-                {busy === 'join' ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  <Text style={formStyles.secondaryButtonText}>Wyślij prośbę</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-
-          {success ? <Text style={formStyles.success}>{success}</Text> : null}
-          {error ? <Text style={formStyles.error}>{error}</Text> : null}
-
-          {pendingJoinRequests.length > 0 ? (
-            <>
-              <Text style={styles.listHeading}>Oczekujące prośby</Text>
-              <View style={styles.pendingList}>
-                {pendingJoinRequests.map((request) => (
-                  <View key={request.id} style={styles.pendingItem}>
-                    <Text style={styles.pendingTitle}>{request.householdName}</Text>
-                    <Text style={styles.pendingMeta}>
-                      Wysłano {formatInstant(request.requestedAt)} · czeka na akceptację właściciela
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          ) : null}
-
-          <Text style={styles.listHeading}>Twoje lodówki</Text>
-
-          {isLoading ? (
-            <ActivityIndicator color={colors.primary} style={styles.loader} />
-          ) : households.length === 0 ? (
-            <Text style={styles.empty}>Nie należysz jeszcze do żadnej lodówki.</Text>
-          ) : (
-            <View style={styles.list}>
-              {households.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={[styles.listItem, webPointer]}
-                  onPress={() =>
-                    navigation.navigate('HouseholdDetail', { householdId: item.id })
-                  }
-                >
-                  <View style={styles.listItemMain}>
-                    <Text style={styles.listItemTitle}>{item.name}</Text>
-                    <Text style={styles.listItemMeta}>
-                      {roleLabel(item.myRole)} · od {formatInstant(item.createdAt)}
-                    </Text>
-                  </View>
-                  <Text style={styles.listItemChevron}>→</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-      </ScreenShell>
+      {isNativeMobile ? (
+        <View style={[styles.page, { paddingTop: pagePaddingTop }]}>{page}</View>
+      ) : (
+        <ScreenShell variant="app" card={false} alignTop contentStyle={styles.shell}>
+          {page}
+        </ScreenShell>
+      )}
     </AppChrome>
   );
 }
@@ -262,13 +288,22 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 880,
   },
-  card: {
+  page: {
     width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  pageTitleWeb: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
   },
   subtitle: {
     marginTop: 8,
@@ -287,9 +322,9 @@ const styles = StyleSheet.create({
   actionBox: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
-    backgroundColor: '#FAFCFA',
+    backgroundColor: colors.surface,
     flex: 1,
   },
   actionTitle: {
@@ -297,6 +332,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 10,
+  },
+  createDescriptionInput: {
+    marginTop: 10,
+    minHeight: 56,
+    textAlignVertical: 'top',
   },
   listHeading: {
     fontSize: 18,
@@ -322,9 +362,9 @@ const styles = StyleSheet.create({
   pendingItem: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: colors.surface,
   },
   pendingTitle: {
     fontSize: 16,
@@ -342,9 +382,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
-    backgroundColor: '#F0F7F4',
+    backgroundColor: colors.surface,
   },
   listItemMain: {
     flex: 1,

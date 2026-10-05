@@ -8,6 +8,7 @@ import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
 
 type RouteName = keyof AppStackParamList;
+type NavigationRoute = 'Households' | 'Profile';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList>;
@@ -30,7 +31,7 @@ export function AppChrome({ navigation, activeRoute, children, scroll = false }:
     );
   }
 
-  const navItem = (route: RouteName, label: string) => {
+  const navItem = (route: NavigationRoute, label: string) => {
     const active = activeRoute === route;
     return (
       <Pressable
@@ -57,7 +58,6 @@ export function AppChrome({ navigation, activeRoute, children, scroll = false }:
         <Text style={styles.sidebarBrand}>Fridge</Text>
         <Text style={styles.sidebarTagline}>Panel użytkownika</Text>
         <View style={styles.nav}>
-          {navItem('Home', 'Start')}
           {navItem('Households', 'Lodówki')}
           {navItem('Profile', 'Mój profil')}
         </View>
@@ -145,12 +145,12 @@ const styles = StyleSheet.create({
   },
   main: {
     flex: 1,
-    padding: 40,
+    padding: 32,
     alignItems: 'center',
   },
   mainScroll: {
     flexGrow: 1,
-    padding: 40,
+    padding: 32,
     alignItems: 'center',
   },
 });

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { login as loginRequest, register as registerRequest, RegisterRequest } from '../api/auth';
 import { ApiError } from '../api/client';
 import { clearToken, getToken, saveToken } from './tokenStorage';
+import { setUnauthorizedSessionHandler } from './unauthorizedSession';
 
 type AuthContextValue = {
   token: string | null;
@@ -78,6 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearToken();
     setToken(null);
   }, []);
+
+  useEffect(() => {
+    setUnauthorizedSessionHandler(signOut);
+    return () => setUnauthorizedSessionHandler(null);
+  }, [signOut]);
 
   const applySessionToken = useCallback(async (rawToken: string) => {
     const cleanToken = await persistToken(rawToken);

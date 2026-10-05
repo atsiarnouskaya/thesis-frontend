@@ -1,16 +1,27 @@
 import React, { useEffect } from 'react';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { parseInviteCodeFromUrl } from '../household/joinLink';
 import { consumePendingJoinCode, savePendingJoinCode } from '../household/pendingJoinStorage';
-import { AppStackParamList } from './types';
+import { RootNavigationParamList } from './types';
 
-export const navigationRef = createNavigationContainerRef<AppStackParamList>();
+export const navigationRef = createNavigationContainerRef<RootNavigationParamList>();
+
+const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
 
 export function navigateToJoinInvite(inviteCode: string): void {
   if (!navigationRef.isReady()) {
     return;
   }
+
+  if (isNativeMobile) {
+    navigationRef.navigate('HouseholdsTab', {
+      screen: 'HouseholdList',
+      params: { inviteCode },
+    });
+    return;
+  }
+
   navigationRef.navigate('Households', { inviteCode });
 }
 

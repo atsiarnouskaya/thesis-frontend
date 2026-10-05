@@ -31,7 +31,7 @@ export function AuthSplitLayout({ children }: Props) {
         <Text style={styles.heroBrand}>Fridge</Text>
         <Text style={styles.heroTitle}>Twoja lodówka pod kontrolą</Text>
         <Text style={styles.heroText}>
-          Zarządzaj zapasami, profilem i gospodarstwem domowym — na telefonie i w przeglądarce.
+          Zarządzaj zapasami, profilem i gospodarstwem domowym - na telefonie i w przeglądarce.
         </Text>
         <View style={styles.heroPillRow}>
           <View style={styles.heroPill}>

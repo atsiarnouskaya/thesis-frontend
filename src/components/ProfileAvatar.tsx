@@ -24,7 +24,7 @@ export function ProfileAvatar({ username, avatarBase64, size = 96, editable = fa
           <Text style={[styles.initials, { fontSize: size * 0.34 }]}>{initials}</Text>
         </View>
       )}
-      {editable ? (
+      {editable && !imageUri ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>+</Text>
         </View>

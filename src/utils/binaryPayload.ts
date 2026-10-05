@@ -76,3 +76,24 @@ export function parseTimestamp(raw: unknown): string | null {
 
   return null;
 }
+
+/** LocalDate z backendu: "YYYY-MM-DD" lub tablica [rok, miesiąc, dzień]. */
+export function parseLocalDate(raw: unknown): string | null {
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
+    return raw.trim();
+  }
+
+  if (Array.isArray(raw) && raw.length >= 3) {
+    const [year, month, day] = raw;
+    if (typeof year === 'number' && typeof month === 'number' && typeof day === 'number') {
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+  }
+
+  const timestamp = parseTimestamp(raw);
+  if (timestamp) {
+    return timestamp.slice(0, 10);
+  }
+
+  return null;
+}

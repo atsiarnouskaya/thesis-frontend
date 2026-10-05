@@ -42,7 +42,7 @@ export function LoginScreen({ navigation }: Props) {
     <AuthSplitLayout>
       <Text style={formStyles.brand}>Fridge</Text>
       <Text style={formStyles.title}>Zaloguj się</Text>
-      <Text style={formStyles.subtitle}>Konto z backendu Fridge — ten sam login na webie i mobile.</Text>
+      <Text style={formStyles.subtitle}>Konto z backendu Fridge - ten sam login na webie i mobile.</Text>
 
       <Text style={formStyles.label}>Email</Text>
       <FormTextInput

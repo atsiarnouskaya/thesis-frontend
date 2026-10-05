@@ -25,6 +25,7 @@ export type InvitationWithQr = {
 export type Household = {
   id: string;
   name: string;
+  description: string | null;
   invitationWithQr: InvitationWithQr;
   myRole: MemberRole;
   createdAt: string;
@@ -48,6 +49,7 @@ type InvitationRaw = {
 type HouseholdRaw = {
   id?: unknown;
   name?: unknown;
+  description?: unknown;
   invitationWithQr?: unknown;
   myRole?: unknown;
   createdAt?: unknown;
@@ -84,10 +86,17 @@ function parseHousehold(raw: unknown): Household {
     throw new ApiError('Nieprawidłowa odpowiedź lodówki (rola)', 502);
   }
   const createdAt = parseTimestamp(item.createdAt) ?? new Date().toISOString();
+  const description =
+    item.description == null
+      ? null
+      : typeof item.description === 'string'
+        ? item.description
+        : null;
 
   return {
     id: item.id,
     name: item.name,
+    description,
     invitationWithQr: parseInvitation(item.invitationWithQr),
     myRole: item.myRole,
     createdAt,
@@ -172,16 +181,45 @@ export async function fetchHouseholdMembers(householdId: string): Promise<Househ
   return apiRequest<HouseholdMember[]>(`/household/${householdId}/members`, { auth: true });
 }
 
-export async function createHousehold(name: string): Promise<Household> {
+export async function createHousehold(
+  name: string,
+  description?: string | null,
+): Promise<Household> {
+  const body: { name: string; description?: string } = { name: name.trim() };
+  const normalizedDescription = description?.trim();
+  if (normalizedDescription) {
+    body.description = normalizedDescription;
+  }
+
   const raw = await apiRequest<unknown>('/household', {
     method: 'POST',
     auth: true,
-    body: { name: name.trim() },
+    body,
   });
   return parseHousehold(raw);
 }
 
-/** Wysyła prośbę o dołączenie — wymaga akceptacji właściciela lodówki. */
+export type UpdateHouseholdInput = {
+  name: string;
+  description?: string | null;
+};
+
+export async function updateHousehold(
+  householdId: string,
+  input: UpdateHouseholdInput,
+): Promise<Household> {
+  const raw = await apiRequest<unknown>(`/household/${householdId}`, {
+    method: 'PATCH',
+    auth: true,
+    body: {
+      name: input.name.trim(),
+      description: input.description?.trim() ?? '',
+    },
+  });
+  return parseHousehold(raw);
+}
+
+/** Wysyła prośbę o dołączenie - wymaga akceptacji właściciela lodówki. */
 export async function requestJoinHousehold(inviteCode: string): Promise<JoinRequest> {
   const raw = await apiRequest<unknown>('/household/join', {
     method: 'POST',

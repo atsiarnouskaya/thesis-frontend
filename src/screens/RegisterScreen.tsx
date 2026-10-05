@@ -81,7 +81,7 @@ export function RegisterScreen({ navigation }: Props) {
     <AuthSplitLayout>
       <Text style={formStyles.brand}>Fridge</Text>
       <Text style={formStyles.title}>Załóż konto</Text>
-      <Text style={formStyles.subtitle}>Opcjonalnie dodaj zdjęcie — przytniesz je do kwadratu.</Text>
+      <Text style={formStyles.subtitle}>Opcjonalnie dodaj zdjęcie - przytniesz je do kwadratu.</Text>
 
       <View style={styles.avatarRow}>
         <ProfileAvatar

@@ -46,7 +46,7 @@ export function invitationExpiryLabel(expiresAt: string | null | undefined): str
     return 'Brak daty ważności w odpowiedzi API';
   }
   if (isInvitationExpired(expiresAt)) {
-    return `Wygasł ${formatDateTime(expiresAt)} — wygeneruj nowy kod (właściciel).`;
+    return `Wygasł ${formatDateTime(expiresAt)} - wygeneruj nowy kod (właściciel).`;
   }
   return `Ważny do ${formatDateTime(expiresAt)}`;
 }
