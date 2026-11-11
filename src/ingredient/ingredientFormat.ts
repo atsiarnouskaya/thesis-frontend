@@ -1,4 +1,8 @@
+import { TranslationValues } from '../i18n/types';
+
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+type TranslateFn = (key: string, values?: TranslationValues) => string;
 
 export function isValidLocalDateInput(value: string): boolean {
   const trimmed = value.trim();
@@ -9,9 +13,9 @@ export function isValidLocalDateInput(value: string): boolean {
   return !Number.isNaN(parsed);
 }
 
-export function formatLocalDate(value: string): string {
+export function formatLocalDate(value: string, intlLocale = 'pl-PL'): string {
   try {
-    return new Date(`${value}T12:00:00`).toLocaleDateString('pl-PL', {
+    return new Date(`${value}T12:00:00`).toLocaleDateString(intlLocale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -40,14 +44,14 @@ export function getExpiryStatus(expiresAt: string): ExpiryStatus {
   return 'ok';
 }
 
-export function expiryStatusLabel(status: ExpiryStatus): string {
+export function expiryStatusLabel(status: ExpiryStatus, t: TranslateFn): string {
   switch (status) {
     case 'expired':
-      return 'Przeterminowany';
+      return t('ingredient.expiryExpired');
     case 'soon':
-      return 'Wkrótce się psuje';
+      return t('ingredient.expirySoon');
     default:
-      return 'Ważny';
+      return t('ingredient.expiryOk');
   }
 }
 
@@ -64,43 +68,35 @@ export const INGREDIENT_STATUS_FILTERS: IngredientStatusFilter[] = [
   'EXPIRED',
 ];
 
-export function ingredientStatusFilterLabel(status: IngredientStatusFilter): string {
-  switch (status) {
-    case 'PURCHASED':
-      return 'Aktywne';
-    case 'CONSUMED':
-      return 'Zjedzone';
-    case 'DISCARD':
-      return 'Wyrzucone';
-    case 'EXPIRED':
-      return 'Przeterminowane';
-  }
+export function ingredientStatusFilterLabel(
+  status: IngredientStatusFilter,
+  t: TranslateFn,
+): string {
+  return t(`ingredient.statusFilter.${status}`);
 }
 
-export function ingredientStatusCountLabel(status: IngredientStatusFilter, count: number): string {
-  const noun = (() => {
-    switch (status) {
-      case 'PURCHASED':
-        return count === 1 ? 'aktywny produkt' : 'aktywne produkty';
-      case 'CONSUMED':
-        return count === 1 ? 'zjedzony produkt' : 'zjedzone produkty';
-      case 'DISCARD':
-        return count === 1 ? 'wyrzucony produkt' : 'wyrzucone produkty';
-      case 'EXPIRED':
-        return count === 1 ? 'przeterminowany produkt' : 'przeterminowane produkty';
-    }
-  })();
+export function ingredientStatusCountLabel(
+  status: IngredientStatusFilter,
+  count: number,
+  t: TranslateFn,
+): string {
+  const filterLabel = ingredientStatusFilterLabel(status, t);
+  const nounKey =
+    count === 1
+      ? `ingredient.noun.${status}_one`
+      : `ingredient.noun.${status}_few`;
+  const noun = t(nounKey);
 
   if (count === 0) {
-    return `Brak ${noun} w tej lodówce.`;
+    return t('ingredient.countNone', { noun });
   }
   if (count === 1) {
-    return `1 ${noun}.`;
+    return t('ingredient.countOne', { noun });
   }
   if (count < 5) {
-    return `${count} ${noun}.`;
+    return t('ingredient.countFew', { count, noun });
   }
-  return `${count} produktów (${ingredientStatusFilterLabel(status).toLowerCase()}).`;
+  return t('ingredient.countMany', { count, filter: filterLabel.toLowerCase() });
 }
 
 export function parseIngredientQuantityInput(value: string): number | null | undefined {
@@ -117,34 +113,39 @@ export function parseIngredientQuantityInput(value: string): number | null | und
   return parsed;
 }
 
-export function formatIngredientQuantity(quantity: number | null): string | null {
+export function formatIngredientQuantity(quantity: number | null, t: TranslateFn): string | null {
   if (quantity == null) {
     return null;
   }
 
-  return quantity === 1 ? '1 szt.' : `${quantity} szt.`;
+  return quantity === 1
+    ? t('ingredient.qtyOnePiece')
+    : t('ingredient.qtyPiece', { count: quantity });
 }
 
-export function validateIngredientInput(input: {
-  name: string;
-  purchasedAt: string;
-  expiresAt: string;
-  quantity?: string;
-}): string | null {
+export function validateIngredientInput(
+  input: {
+    name: string;
+    purchasedAt: string;
+    expiresAt: string;
+    quantity?: string;
+  },
+  t: TranslateFn,
+): string | null {
   if (!input.name.trim()) {
-    return 'Podaj nazwę produktu';
+    return t('ingredient.validation.name');
   }
   if (parseIngredientQuantityInput(input.quantity ?? '') === undefined) {
-    return 'Ilość musi być liczbą całkowitą większą od zera';
+    return t('ingredient.validation.quantity');
   }
   if (!isValidLocalDateInput(input.purchasedAt)) {
-    return 'Wybierz datę zakupu';
+    return t('ingredient.validation.purchasedAt');
   }
   if (!isValidLocalDateInput(input.expiresAt)) {
-    return 'Wybierz termin ważności';
+    return t('ingredient.validation.expiresAt');
   }
   if (input.expiresAt.trim() < input.purchasedAt.trim()) {
-    return 'Termin ważności nie może być wcześniejszy niż data zakupu';
+    return t('ingredient.validation.expiryBeforePurchase');
   }
   return null;
 }

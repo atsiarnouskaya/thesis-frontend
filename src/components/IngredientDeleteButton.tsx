@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { webPointer } from '../theme/forms';
 
 type Props = {
@@ -19,6 +20,8 @@ function CloseIcon() {
 }
 
 export function IngredientDeleteButton({ onPress, disabled = false, isLoading = false }: Props) {
+  const { t } = useI18n();
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -28,7 +31,7 @@ export function IngredientDeleteButton({ onPress, disabled = false, isLoading = 
       ]}
       onPress={onPress}
       disabled={disabled || isLoading}
-      accessibilityLabel="Usuń produkt"
+      accessibilityLabel={t('ingredient.deleteA11y')}
       accessibilityRole="button"
       hitSlop={8}
     >

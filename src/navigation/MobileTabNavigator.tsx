@@ -6,6 +6,7 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { colors } from '../theme/colors';
 import { HouseholdStack } from './HouseholdStack';
 import { MobileTabBarIcon } from './MobileTabBarIcon';
+import { useI18n } from '../i18n/I18nContext';
 import { MobileTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MobileTabParamList>();
@@ -19,6 +20,8 @@ const tabBarBaseStyle = {
 } as const;
 
 export function MobileTabNavigator() {
+  const { t } = useI18n();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -37,8 +40,8 @@ export function MobileTabNavigator() {
         name="HouseholdsTab"
         component={HouseholdStack}
         options={{
-          title: 'Lodówki',
-          tabBarLabel: 'Lodówki',
+          title: t('nav.households'),
+          tabBarLabel: t('nav.households'),
           tabBarIcon: ({ color, focused }) => (
             <MobileTabBarIcon name="fridge" color={color} focused={focused} />
           ),
@@ -57,8 +60,8 @@ export function MobileTabNavigator() {
         name="ProfileTab"
         component={ProfileScreen}
         options={{
-          title: 'Profil',
-          tabBarLabel: 'Profil',
+          title: t('nav.profile'),
+          tabBarLabel: t('nav.profile'),
           tabBarIcon: ({ color, focused }) => (
             <MobileTabBarIcon name="profile" color={color} focused={focused} />
           ),

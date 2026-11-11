@@ -1,8 +1,6 @@
 import React from 'react';
 import { Platform, StyleSheet, View, ViewStyle } from 'react-native';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
-import { colors } from '../theme/colors';
-import { cardElevation } from '../theme/forms';
 
 type Props = {
   children: React.ReactNode;
@@ -10,6 +8,8 @@ type Props = {
   /** Pełna wysokość panelu (np. detal lodówki na desktopie). */
   fill?: boolean;
 };
+
+const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
 
 export function AppPageFrame({ children, style, fill = false }: Props) {
   const { isWeb, isWideWeb } = useResponsiveLayout();
@@ -29,11 +29,7 @@ export function AppPageFrame({ children, style, fill = false }: Props) {
     );
   }
 
-  return (
-    <View style={[mobileStyles.card, cardElevation, style]}>
-      {children}
-    </View>
-  );
+  return <View style={[nativeStyles.frame, style]}>{children}</View>;
 }
 
 const webStyles = StyleSheet.create({
@@ -50,14 +46,9 @@ const webStyles = StyleSheet.create({
   },
 });
 
-const mobileStyles = StyleSheet.create({
-  card: {
+const nativeStyles = StyleSheet.create({
+  frame: {
     width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...(Platform.OS === 'web' ? {} : {}),
+    alignSelf: 'stretch',
   },
 });

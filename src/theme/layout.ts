@@ -4,7 +4,7 @@ export const BREAKPOINTS = {
 } as const;
 
 export const MAX_WIDTH = {
-  authCard: 440,
+  authCard: 560,
   content: 720,
   appShell: 1120,
   profile: 960,

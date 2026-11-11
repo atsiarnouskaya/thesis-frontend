@@ -7,6 +7,8 @@ import { IngredientFormScreen } from '../screens/IngredientFormScreen';
 import { IngredientListScreen } from '../screens/IngredientListScreen';
 import { BarcodeSearchScreen } from '../screens/BarcodeSearchScreen';
 import { BarcodeScanScreen } from '../screens/BarcodeScanScreen';
+import { ReceiptProductsScreen } from '../screens/ReceiptProductsScreen';
+import { ReceiptScanScreen } from '../screens/ReceiptScanScreen';
 import { StatisticsChartScreen } from '../screens/StatisticsChartScreen';
 import { StatisticsListScreen } from '../screens/StatisticsListScreen';
 import { ShoppingListFormScreen } from '../screens/ShoppingListFormScreen';
@@ -36,6 +38,8 @@ export function HouseholdStack() {
       />
       <Stack.Screen name="BarcodeScan" component={BarcodeScanScreen} />
       <Stack.Screen name="BarcodeSearch" component={BarcodeSearchScreen} />
+      <Stack.Screen name="ReceiptScan" component={ReceiptScanScreen} />
+      <Stack.Screen name="ReceiptProducts" component={ReceiptProductsScreen} />
       <Stack.Screen name="StatisticsList" component={StatisticsListScreen} />
       <Stack.Screen name="StatisticsChart" component={StatisticsChartScreen} />
       <Stack.Screen name="ShoppingLists" component={ShoppingListsScreen} />

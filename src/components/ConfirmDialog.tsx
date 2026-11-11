@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useI18n } from '../i18n/I18nContext';
 import { colors } from '../theme/colors';
 import { cardElevation, webPointer } from '../theme/forms';
 
@@ -28,13 +29,17 @@ export function ConfirmDialog({
   visible,
   title,
   message,
-  confirmLabel = 'Potwierdź',
-  cancelLabel = 'Anuluj',
+  confirmLabel,
+  cancelLabel,
   variant = 'default',
   isLoading = false,
   onConfirm,
   onCancel,
 }: Props) {
+  const { t } = useI18n();
+  const resolvedConfirm = confirmLabel ?? t('common.confirm');
+  const resolvedCancel = cancelLabel ?? t('common.cancel');
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onCancel}>
       <View style={styles.backdrop}>
@@ -49,7 +54,7 @@ export function ConfirmDialog({
               onPress={onCancel}
               disabled={isLoading}
             >
-              <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
+              <Text style={styles.cancelButtonText}>{resolvedCancel}</Text>
             </Pressable>
 
             <Pressable
@@ -65,7 +70,7 @@ export function ConfirmDialog({
               {isLoading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
+                <Text style={styles.confirmButtonText}>{resolvedConfirm}</Text>
               )}
             </Pressable>
           </View>

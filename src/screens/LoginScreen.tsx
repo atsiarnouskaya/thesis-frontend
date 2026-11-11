@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthSplitLayout } from '../components/AuthSplitLayout';
 import { FormTextInput } from '../components/FormTextInput';
 import { useAuth } from '../auth/AuthContext';
+import { useI18n } from '../i18n/I18nContext';
 import { useProfile } from '../profile/ProfileContext';
 import { AuthStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
@@ -12,6 +13,7 @@ import { formStyles, webPointer } from '../theme/forms';
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export function LoginScreen({ navigation }: Props) {
+  const { t } = useI18n();
   const { signIn } = useAuth();
   const { refreshProfile } = useProfile();
   const [email, setEmail] = useState('');
@@ -23,7 +25,7 @@ export function LoginScreen({ navigation }: Props) {
     setError(null);
 
     if (!email.trim() || !password) {
-      setError('Podaj email i hasło');
+      setError(t('auth.loginMissing'));
       return;
     }
 
@@ -32,7 +34,7 @@ export function LoginScreen({ navigation }: Props) {
       await signIn(email, password);
       await refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Logowanie nie powiodło się');
+      setError(err instanceof Error ? err.message : t('auth.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -41,10 +43,10 @@ export function LoginScreen({ navigation }: Props) {
   return (
     <AuthSplitLayout>
       <Text style={formStyles.brand}>Fridge</Text>
-      <Text style={formStyles.title}>Zaloguj się</Text>
-      <Text style={formStyles.subtitle}>Konto z backendu Fridge - ten sam login na webie i mobile.</Text>
+      <Text style={formStyles.title}>{t('auth.loginTitle')}</Text>
+      <Text style={formStyles.subtitle}>{t('auth.loginSubtitle')}</Text>
 
-      <Text style={formStyles.label}>Email</Text>
+      <Text style={formStyles.label}>{t('common.email')}</Text>
       <FormTextInput
         autoCapitalize="none"
         autoCorrect={false}
@@ -56,7 +58,7 @@ export function LoginScreen({ navigation }: Props) {
         editable={!loading}
       />
 
-      <Text style={formStyles.label}>Hasło</Text>
+      <Text style={formStyles.label}>{t('common.password')}</Text>
       <FormTextInput
         secureTextEntry
         placeholder="••••••••"
@@ -76,7 +78,7 @@ export function LoginScreen({ navigation }: Props) {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={formStyles.primaryButtonText}>Zaloguj</Text>
+          <Text style={formStyles.primaryButtonText}>{t('auth.loginButton')}</Text>
         )}
       </Pressable>
 
@@ -84,7 +86,7 @@ export function LoginScreen({ navigation }: Props) {
         onPress={() => navigation.navigate('Register')}
         style={[styles.linkWrap, webPointer]}
       >
-        <Text style={formStyles.link}>Nie masz konta? Zarejestruj się</Text>
+        <Text style={formStyles.link}>{t('auth.noAccount')}</Text>
       </Pressable>
     </AuthSplitLayout>
   );

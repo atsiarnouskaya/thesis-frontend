@@ -17,7 +17,7 @@ Aplikacja React Native (Expo) podpięta pod auth-flow backendu Fridge:
 
 ## Wymagania
 
-- Node.js 20+ i npm
+- Node.js **22.13+** i npm
 - działający backend na porcie `8080`
 - Expo Go na telefonie **albo** emulator Android / simulator iOS
 
@@ -26,6 +26,7 @@ Aplikacja React Native (Expo) podpięta pod auth-flow backendu Fridge:
 ```bash
 cd fridge-mobile
 npm install
+npx expo install --fix
 cp .env.example .env
 ```
 

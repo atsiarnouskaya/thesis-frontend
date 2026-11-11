@@ -5,17 +5,19 @@ import { AuthSplitLayout } from '../components/AuthSplitLayout';
 import { FormTextInput } from '../components/FormTextInput';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../auth/AuthContext';
+import { useI18n } from '../i18n/I18nContext';
 import { useProfile } from '../profile/ProfileContext';
 import { AuthStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
 import { pickAndCropProfileImage } from '../utils/pickProfileImage';
 import { readUriAsBase64 } from '../utils/readUriAsBase64';
-import { PASSWORD_HINT, PASSWORD_REGEX } from '../utils/passwordPolicy';
+import { PASSWORD_REGEX } from '../utils/passwordPolicy';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 export function RegisterScreen({ navigation }: Props) {
+  const { t } = useI18n();
   const { signUp, signIn } = useAuth();
   const { uploadPhotoFromUri, refreshProfile } = useProfile();
   const [username, setUsername] = useState('');
@@ -41,7 +43,7 @@ export function RegisterScreen({ navigation }: Props) {
       setPhotoMimeType(picked.mimeType);
       setPhotoPreviewBase64(await readUriAsBase64(picked.uri));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udało się wybrać zdjęcia');
+      setError(err instanceof Error ? err.message : t('auth.pickPhotoFailed'));
     }
   };
 
@@ -49,12 +51,12 @@ export function RegisterScreen({ navigation }: Props) {
     setError(null);
 
     if (!username.trim() || !email.trim() || !password) {
-      setError('Uzupełnij wszystkie pola');
+      setError(t('auth.registerMissing'));
       return;
     }
 
     if (!PASSWORD_REGEX.test(password)) {
-      setError(PASSWORD_HINT);
+      setError(t('auth.passwordHint'));
       return;
     }
 
@@ -71,7 +73,7 @@ export function RegisterScreen({ navigation }: Props) {
         await uploadPhotoFromUri(photoUri, photoFileName, photoMimeType);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Rejestracja nie powiodła się');
+      setError(err instanceof Error ? err.message : t('auth.registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -80,8 +82,8 @@ export function RegisterScreen({ navigation }: Props) {
   return (
     <AuthSplitLayout>
       <Text style={formStyles.brand}>Fridge</Text>
-      <Text style={formStyles.title}>Załóż konto</Text>
-      <Text style={formStyles.subtitle}>Opcjonalnie dodaj zdjęcie - przytniesz je do kwadratu.</Text>
+      <Text style={formStyles.title}>{t('auth.registerCreateTitle')}</Text>
+      <Text style={formStyles.subtitle}>{t('auth.registerSubtitle')}</Text>
 
       <View style={styles.avatarRow}>
         <ProfileAvatar
@@ -92,11 +94,13 @@ export function RegisterScreen({ navigation }: Props) {
           onPress={loading ? undefined : onPickPhoto}
         />
         <Pressable onPress={onPickPhoto} disabled={loading} style={webPointer}>
-          <Text style={styles.photoLink}>{photoUri ? 'Przytnij ponownie' : 'Wybierz i przytnij'}</Text>
+          <Text style={styles.photoLink}>
+            {photoUri ? t('auth.photoPickAgain') : t('auth.photoPickCrop')}
+          </Text>
         </Pressable>
       </View>
 
-      <Text style={formStyles.label}>Nazwa użytkownika</Text>
+      <Text style={formStyles.label}>{t('auth.username')}</Text>
       <FormTextInput
         autoCapitalize="none"
         placeholder="np. ania"
@@ -106,7 +110,7 @@ export function RegisterScreen({ navigation }: Props) {
         editable={!loading}
       />
 
-      <Text style={formStyles.label}>Email</Text>
+      <Text style={formStyles.label}>{t('common.email')}</Text>
       <FormTextInput
         autoCapitalize="none"
         autoCorrect={false}
@@ -118,7 +122,7 @@ export function RegisterScreen({ navigation }: Props) {
         editable={!loading}
       />
 
-      <Text style={formStyles.label}>Hasło</Text>
+      <Text style={formStyles.label}>{t('common.password')}</Text>
       <FormTextInput
         secureTextEntry
         placeholder="SilneHaslo1!"
@@ -138,7 +142,7 @@ export function RegisterScreen({ navigation }: Props) {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={formStyles.primaryButtonText}>Zarejestruj</Text>
+          <Text style={formStyles.primaryButtonText}>{t('auth.registerButton')}</Text>
         )}
       </Pressable>
 
@@ -146,7 +150,7 @@ export function RegisterScreen({ navigation }: Props) {
         onPress={() => navigation.navigate('Login')}
         style={[styles.linkWrap, webPointer]}
       >
-        <Text style={formStyles.link}>Masz już konto? Zaloguj się</Text>
+        <Text style={formStyles.link}>{t('auth.hasAccount')}</Text>
       </Pressable>
     </AuthSplitLayout>
   );

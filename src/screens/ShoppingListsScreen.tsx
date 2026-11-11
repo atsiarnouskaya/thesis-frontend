@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -24,9 +25,11 @@ import {
 } from '../household/HouseholdDetailTabBar';
 import { HouseholdSectionsLayout } from '../household/HouseholdSectionsLayout';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { useMobilePageInsets } from '../hooks/useMobilePageInsets';
 import { resetToHouseholdDetail } from '../navigation/navigationHelpers';
 import { AppStackParamList, HouseholdStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { formStyles, webPointer } from '../theme/forms';
 
 const PAGE_SIZE = 20;
@@ -43,9 +46,12 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function ShoppingListsScreen({ navigation, route }: Props) {
+  const { t } = useI18n();
   const { householdId, householdName } = route.params;
   const appNavigation = navigation as NativeStackNavigationProp<AppStackParamList>;
   const { isWideWeb } = useResponsiveLayout();
+  const { pagePaddingTop } = useMobilePageInsets();
+  const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
   const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([]);
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
@@ -69,7 +75,7 @@ export function ShoppingListsScreen({ navigation, route }: Props) {
         setPage(result.page);
         setHasNext(result.hasNext);
       } catch (err) {
-        setError(errorMessage(err, 'Nie udało się pobrać list zakupów'));
+        setError(errorMessage(err, t('shopping.listsFetchFailed')));
         if (!append) {
           setShoppingLists([]);
           setHasNext(false);
@@ -79,7 +85,7 @@ export function ShoppingListsScreen({ navigation, route }: Props) {
         setIsLoadingMore(false);
       }
     },
-    [householdId],
+    [householdId, t],
   );
 
   useFocusEffect(
@@ -108,17 +114,21 @@ export function ShoppingListsScreen({ navigation, route }: Props) {
         variant="app"
         card={false}
         alignTop
-        contentStyle={isWideWeb ? [styles.shell, styles.shellWide] : styles.shell}
+        contentStyle={
+          isWideWeb
+            ? [styles.shell, styles.shellWide]
+            : isNativeMobile
+              ? [styles.shell, { paddingTop: pagePaddingTop }]
+              : styles.shell
+        }
       >
         <AppPageFrame>
           <HouseholdSectionsLayout activeTab="shoppingLists" onChange={onSectionChange}>
             <View style={styles.centeredContent}>
               <View style={[styles.header, isWideWeb && styles.headerWide]}>
             <View style={styles.headerText}>
-              <Text style={styles.title}>Listy zakupów</Text>
-              <Text style={styles.lead}>
-                Zaplanuj zakupy dla lodówki „{householdName}”.
-              </Text>
+              <Text style={styles.title}>{t('shopping.listsTitle')}</Text>
+              <Text style={styles.lead}>{t('shopping.listsLead', { name: householdName })}</Text>
             </View>
             <View style={styles.headerButtons}>
               <Pressable
@@ -127,7 +137,7 @@ export function ShoppingListsScreen({ navigation, route }: Props) {
                   appNavigation.navigate('ShoppingListForm', { householdId, householdName })
                 }
               >
-                <Text style={formStyles.primaryButtonText}>+ Nowa lista</Text>
+                <Text style={formStyles.primaryButtonText}>{t('shopping.newListButton')}</Text>
               </Pressable>
               <Pressable
                 style={[formStyles.secondaryButton, styles.mlButton, webPointer]}
@@ -139,9 +149,7 @@ export function ShoppingListsScreen({ navigation, route }: Props) {
                   })
                 }
               >
-                <Text style={formStyles.secondaryButtonText}>
-                  Utwórz z modelem ML
-                </Text>
+                <Text style={formStyles.secondaryButtonText}>{t('shopping.createWithMl')}</Text>
               </Pressable>
             </View>
               </View>
@@ -152,10 +160,8 @@ export function ShoppingListsScreen({ navigation, route }: Props) {
             <ActivityIndicator color={colors.primary} style={styles.loader} />
           ) : shoppingLists.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>Brak list zakupów</Text>
-              <Text style={styles.emptyText}>
-                Utwórz pierwszą listę i dodaj produkty potrzebne podczas zakupów.
-              </Text>
+              <Text style={styles.emptyTitle}>{t('shopping.emptyTitle')}</Text>
+              <Text style={styles.emptyText}>{t('shopping.emptyText')}</Text>
             </View>
           ) : (
             <View style={[styles.list, isWideWeb && styles.listWide]}>
@@ -180,7 +186,7 @@ export function ShoppingListsScreen({ navigation, route }: Props) {
                           !shoppingList.shoppingListDescription && styles.descriptionEmpty,
                         ]}
                       >
-                        {shoppingList.shoppingListDescription || 'Brak opisu'}
+                        {shoppingList.shoppingListDescription || t('shopping.noDescription')}
                       </Text>
                     </View>
                     <Text style={styles.chevron}>›</Text>
@@ -199,7 +205,7 @@ export function ShoppingListsScreen({ navigation, route }: Props) {
               {isLoadingMore ? (
                 <ActivityIndicator color={colors.primary} />
               ) : (
-                <Text style={formStyles.secondaryButtonText}>Załaduj więcej</Text>
+                <Text style={formStyles.secondaryButtonText}>{t('common.loadMore')}</Text>
               )}
             </Pressable>
               ) : null}
@@ -223,7 +229,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerText: { flex: 1, minWidth: 0 },
-  title: { color: colors.primary, fontSize: 28, fontWeight: '800', marginBottom: 8 },
+  title: { color: colors.text, fontSize: 28, fontWeight: '800', marginBottom: 8 },
   lead: { color: colors.textMuted, fontSize: 15, lineHeight: 22 },
   createButton: { alignSelf: 'stretch', paddingHorizontal: 20 },
   headerButtons: { alignSelf: 'stretch', gap: 10 },

@@ -10,6 +10,8 @@ import { IngredientFormScreen } from '../screens/IngredientFormScreen';
 import { IngredientListScreen } from '../screens/IngredientListScreen';
 import { BarcodeSearchScreen } from '../screens/BarcodeSearchScreen';
 import { BarcodeScanScreen } from '../screens/BarcodeScanScreen';
+import { ReceiptProductsScreen } from '../screens/ReceiptProductsScreen';
+import { ReceiptScanScreen } from '../screens/ReceiptScanScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
@@ -76,6 +78,16 @@ function WebAppNavigator() {
         name="BarcodeSearch"
         component={BarcodeSearchScreen}
         options={{ title: 'Kod kreskowy' }}
+      />
+      <AppStack.Screen
+        name="ReceiptScan"
+        component={ReceiptScanScreen}
+        options={{ title: 'Skanuj paragon' }}
+      />
+      <AppStack.Screen
+        name="ReceiptProducts"
+        component={ReceiptProductsScreen}
+        options={{ title: 'Produkty z paragonu' }}
       />
       <AppStack.Screen
         name="StatisticsList"

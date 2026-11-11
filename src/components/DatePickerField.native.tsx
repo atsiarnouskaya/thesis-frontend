@@ -14,6 +14,7 @@ import {
   parseLocalDateToDate,
   todayLocalDateString,
 } from '../ingredient/ingredientFormat';
+import { useI18n } from '../i18n/I18nContext';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
 
@@ -28,8 +29,10 @@ export function DatePickerField({
   value,
   onChange,
   editable = true,
-  placeholder = 'Wybierz datę',
+  placeholder,
 }: Props) {
+  const { t, intlLocale } = useI18n();
+  const resolvedPlaceholder = placeholder ?? t('datePicker.placeholder');
   const [open, setOpen] = useState(false);
   const [draftDate, setDraftDate] = useState(() =>
     value ? parseLocalDateToDate(value) : parseLocalDateToDate(todayLocalDateString()),
@@ -37,10 +40,10 @@ export function DatePickerField({
 
   const displayValue = useMemo(() => {
     if (!value) {
-      return placeholder;
+      return resolvedPlaceholder;
     }
-    return formatLocalDate(value);
-  }, [placeholder, value]);
+    return formatLocalDate(value, intlLocale);
+  }, [intlLocale, resolvedPlaceholder, value]);
 
   const openPicker = () => {
     if (!editable) {
@@ -101,18 +104,18 @@ export function DatePickerField({
             <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
                 <Pressable onPress={closePicker} style={webPointer}>
-                  <Text style={formStyles.link}>Anuluj</Text>
+                  <Text style={formStyles.link}>{t('datePicker.cancel')}</Text>
                 </Pressable>
-                <Text style={styles.modalTitle}>Wybierz datę</Text>
+                <Text style={styles.modalTitle}>{t('datePicker.title')}</Text>
                 <Pressable onPress={confirmPicker} style={webPointer}>
-                  <Text style={[formStyles.link, styles.modalDone]}>Gotowe</Text>
+                  <Text style={[formStyles.link, styles.modalDone]}>{t('datePicker.done')}</Text>
                 </Pressable>
               </View>
               <DateTimePicker
                 value={draftDate}
                 mode="date"
                 display="inline"
-                locale="pl-PL"
+                locale={intlLocale}
                 onChange={(_, selectedDate) => {
                   if (selectedDate) {
                     setDraftDate(selectedDate);

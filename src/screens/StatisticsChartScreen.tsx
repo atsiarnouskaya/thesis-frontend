@@ -22,12 +22,13 @@ import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { AppStackParamList, HouseholdStackParamList } from '../navigation/types';
 import {
   formatPeriodLabel,
-  GRANULARITY_OPTIONS,
+  getGranularityOptions,
   granularityDescription,
   sortTimeSeries,
 } from '../statistics/statisticsUtils';
 import { saveStatisticsListState } from '../statistics/statisticsListState';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { formStyles, webPointer } from '../theme/forms';
 
 type Props =
@@ -50,6 +51,7 @@ export function StatisticsChartScreen({ navigation, route }: Props) {
     granularity: initialGranularity,
     useFullRange = false,
   } = route.params;
+  const { t, intlLocale } = useI18n();
   const { isWideWeb } = useResponsiveLayout();
   const { pagePaddingTop } = useMobilePageInsets();
   const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
@@ -80,13 +82,13 @@ export function StatisticsChartScreen({ navigation, route }: Props) {
       setEntries(sortTimeSeries(result.data));
       setFirstDate(result.firstDate);
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się pobrać wykresu'));
+      setError(errorMessage(err, t('statistics.chartFetchFailed')));
       setEntries([]);
       setFirstDate(null);
     } finally {
       setIsLoading(false);
     }
-  }, [granularity, householdId, ingredientName, startTime, endTime, useFullRange]);
+  }, [granularity, householdId, ingredientName, startTime, endTime, useFullRange, t]);
 
   const changeGranularity = (next: Granularity) => {
     setGranularity(next);
@@ -106,9 +108,9 @@ export function StatisticsChartScreen({ navigation, route }: Props) {
         count: entry.count,
         periodStart: entry.periodStart,
         periodEnd: entry.periodEnd,
-        label: formatPeriodLabel(entry.periodStart, entry.periodEnd, granularity),
+        label: formatPeriodLabel(entry.periodStart, entry.periodEnd, granularity, intlLocale),
       })),
-    [entries, granularity],
+    [entries, granularity, intlLocale],
   );
 
   const totalPurchases = useMemo(
@@ -119,17 +121,23 @@ export function StatisticsChartScreen({ navigation, route }: Props) {
   const periodLabel = useMemo(() => {
     if (useFullRange) {
       if (firstDate) {
-        return `Wykres zakupów w okresie ${formatLocalDate(firstDate)} – ${formatLocalDate(todayLocalDateString())}`;
+        return t('statistics.chartPeriodRange', {
+          from: formatLocalDate(firstDate, intlLocale),
+          to: formatLocalDate(todayLocalDateString(), intlLocale),
+        });
       }
-      return 'Wykres zakupów za cały dostępny okres';
+      return t('statistics.chartTitleFull');
     }
 
     if (startTime && endTime) {
-      return `Wykres zakupów w okresie ${formatLocalDate(startTime)} – ${formatLocalDate(endTime)}`;
+      return t('statistics.chartPeriodRange', {
+        from: formatLocalDate(startTime, intlLocale),
+        to: formatLocalDate(endTime, intlLocale),
+      });
     }
 
-    return 'Wykres zakupów';
-  }, [endTime, firstDate, startTime, useFullRange]);
+    return t('statistics.chartTitle');
+  }, [endTime, firstDate, intlLocale, startTime, t, useFullRange]);
 
   return (
     <AppChrome navigation={navigation} activeRoute="Households" scroll>
@@ -153,15 +161,20 @@ export function StatisticsChartScreen({ navigation, route }: Props) {
             <Text style={styles.title}>{ingredientName}</Text>
             <Text style={styles.lead}>{periodLabel}</Text>
             <Text style={styles.meta}>
-              {granularityDescription(granularity)} · Łącznie {totalPurchases}{' '}
-              {totalPurchases === 1 ? 'zakup' : totalPurchases < 5 ? 'zakupy' : 'zakupów'}
+              {granularityDescription(granularity, t)} ·{' '}
+              {t('statistics.totalPurchases', { count: totalPurchases })}{' '}
+              {totalPurchases === 1
+                ? t('statistics.purchaseOne')
+                : totalPurchases < 5
+                  ? t('statistics.purchaseFew')
+                  : t('statistics.purchaseMany')}
             </Text>
           </View>
 
           <View style={styles.granularitySection}>
-            <Text style={formStyles.label}>Typ statystyk</Text>
+            <Text style={formStyles.label}>{t('statistics.granularityType')}</Text>
             <View style={[styles.granularityRow, isWideWeb && styles.granularityRowWide]}>
-              {GRANULARITY_OPTIONS.map((option) => {
+              {getGranularityOptions(t).map((option) => {
                 const isActive = granularity === option.value;
                 return (
                   <Pressable
@@ -202,8 +215,12 @@ export function StatisticsChartScreen({ navigation, route }: Props) {
             <ActivityIndicator color={colors.primary} style={styles.loader} />
           ) : (
             <View style={styles.chartCard}>
-              <Text style={styles.axisTitle}>Ilość zakupów w czasie</Text>
-              <StatisticsBarChart points={chartPoints} granularity={granularity} />
+              <Text style={styles.axisTitle}>{t('statistics.chartAxisTitle')}</Text>
+              <StatisticsBarChart
+                points={chartPoints}
+                granularity={granularity}
+                intlLocale={intlLocale}
+              />
             </View>
           )}
         </AppPageFrame>

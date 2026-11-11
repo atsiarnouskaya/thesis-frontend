@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   NativeStackNavigationProp,
@@ -20,9 +20,11 @@ import { ScreenShell } from '../components/ScreenShell';
 import { HouseholdDetailTab } from '../household/HouseholdDetailTabBar';
 import { HouseholdSectionsLayout } from '../household/HouseholdSectionsLayout';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { useMobilePageInsets } from '../hooks/useMobilePageInsets';
 import { resetToHouseholdDetail } from '../navigation/navigationHelpers';
 import { AppStackParamList, HouseholdStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { formStyles, webPointer } from '../theme/forms';
 
 type Props =
@@ -37,10 +39,13 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function ShoppingListDetailScreen({ navigation, route }: Props) {
+  const { t } = useI18n();
   const { householdId, householdName, shoppingListId, modelTrainedNotice } =
     route.params;
   const appNavigation = navigation as NativeStackNavigationProp<AppStackParamList>;
   const { isWideWeb } = useResponsiveLayout();
+  const { pagePaddingTop } = useMobilePageInsets();
+  const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
   const [shoppingList, setShoppingList] = useState<ShoppingList | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -57,12 +62,12 @@ export function ShoppingListDetailScreen({ navigation, route }: Props) {
     try {
       setShoppingList(await fetchShoppingList(householdId, shoppingListId));
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się pobrać listy zakupów'));
+      setError(errorMessage(err, t('shopping.detailFailed')));
       setShoppingList(null);
     } finally {
       setIsLoading(false);
     }
-  }, [householdId, shoppingListId]);
+  }, [householdId, shoppingListId, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,7 +112,7 @@ export function ShoppingListDetailScreen({ navigation, route }: Props) {
       setShoppingList(updated);
     } catch (err) {
       setShoppingList(previousList);
-      setError(errorMessage(err, 'Nie udało się zaktualizować pozycji'));
+      setError(errorMessage(err, t('shopping.updateItemFailed')));
     } finally {
       setTogglingItemIndex(null);
     }
@@ -121,7 +126,7 @@ export function ShoppingListDetailScreen({ navigation, route }: Props) {
       setShowDeleteConfirm(false);
       appNavigation.navigate('ShoppingLists', { householdId, householdName });
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się usunąć listy zakupów'));
+      setError(errorMessage(err, t('shopping.deleteFailed')));
     } finally {
       setIsDeleting(false);
     }
@@ -141,7 +146,13 @@ export function ShoppingListDetailScreen({ navigation, route }: Props) {
         variant="app"
         card={false}
         alignTop
-        contentStyle={isWideWeb ? [styles.shell, styles.shellWide] : styles.shell}
+        contentStyle={
+          isWideWeb
+            ? [styles.shell, styles.shellWide]
+            : isNativeMobile
+              ? [styles.shell, { paddingTop: pagePaddingTop }]
+              : styles.shell
+        }
       >
         <AppPageFrame>
           <ScreenBackButton
@@ -152,14 +163,11 @@ export function ShoppingListDetailScreen({ navigation, route }: Props) {
             <View style={styles.content}>
               {trainedNoticeVisible ? (
                 <View style={styles.trainedBanner}>
-                  <Text style={styles.trainedBannerText}>
-                    Model regresji logistycznej został zaktualizowany na podstawie
-                    ostatniej edycji listy.
-                  </Text>
+                  <Text style={styles.trainedBannerText}>{t('shopping.trainedNotice')}</Text>
                   <Pressable
                     onPress={() => setTrainedNoticeVisible(false)}
                     style={webPointer}
-                    accessibilityLabel="Zamknij powiadomienie"
+                    accessibilityLabel={t('shopping.dismissNotice')}
                   >
                     <Text style={styles.trainedBannerDismiss}>×</Text>
                   </Pressable>
@@ -199,14 +207,14 @@ export function ShoppingListDetailScreen({ navigation, route }: Props) {
                         }}
                       >
                         <Text style={formStyles.secondaryButtonText}>
-                          {shoppingList.draftId ? 'Edytuj (ML)' : 'Edytuj'}
+                          {shoppingList.draftId ? t('shopping.editMl') : t('shopping.edit')}
                         </Text>
                       </Pressable>
                       <Pressable
                         style={[styles.deleteButton, webPointer]}
                         onPress={() => setShowDeleteConfirm(true)}
                       >
-                        <Text style={styles.deleteButtonText}>Usuń</Text>
+                        <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -227,8 +235,8 @@ export function ShoppingListDetailScreen({ navigation, route }: Props) {
                           accessibilityState={{ checked: item.checked, disabled: togglingItemIndex != null }}
                           accessibilityLabel={
                             item.checked
-                              ? `Odznacz ${item.name}`
-                              : `Oznacz jako kupione: ${item.name}`
+                              ? t('shopping.unmarkBought', { name: item.name })
+                              : t('shopping.markBought', { name: item.name })
                           }
                         >
                           <Text style={[styles.statusText, item.checked && styles.statusTextChecked]}>
@@ -251,9 +259,11 @@ export function ShoppingListDetailScreen({ navigation, route }: Props) {
 
       <ConfirmDialog
         visible={showDeleteConfirm}
-        title="Usuń listę zakupów"
-        message={`Czy na pewno chcesz usunąć „${shoppingList?.shoppingListName ?? ''}”?`}
-        confirmLabel="Usuń"
+        title={t('shopping.deleteTitle')}
+        message={t('shopping.deleteMessage', {
+          name: shoppingList?.shoppingListName ?? '',
+        })}
+        confirmLabel={t('common.delete')}
         variant="destructive"
         isLoading={isDeleting}
         onConfirm={() => void confirmDelete()}
@@ -298,7 +308,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerText: { flex: 1, minWidth: 0 },
-  title: { color: colors.primary, fontSize: 28, fontWeight: '800' },
+  title: { color: colors.text, fontSize: 28, fontWeight: '800' },
   description: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: 8 },
   actions: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   actionButton: { minWidth: 110 },

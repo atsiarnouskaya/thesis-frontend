@@ -26,6 +26,7 @@ import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { HouseholdStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
+import { useI18n } from '../i18n/I18nContext';
 import {
   pickIngredientImageFromCamera,
   pickIngredientImageFromLibrary,
@@ -42,15 +43,19 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function buildPrefillNotes(product: BarcodeProduct): string | null {
+function buildPrefillNotes(
+  product: BarcodeProduct,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string | null {
   const parts = [product.brand, product.quantity, product.categories].filter(Boolean);
   if (parts.length === 0) {
-    return `Kod kreskowy: ${product.barcode}`;
+    return t('barcode.prefillCodeOnly', { barcode: product.barcode });
   }
-  return `${parts.join(' · ')} · Kod: ${product.barcode}`;
+  return `${parts.join(' · ')}${t('barcode.prefillCodeSuffix', { barcode: product.barcode })}`;
 }
 
 export function BarcodeScanScreen({ navigation, route }: Props) {
+  const { t } = useI18n();
   const { householdId, householdName } = route.params;
   const { isWideWeb } = useResponsiveLayout();
   const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
@@ -61,7 +66,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
   const [product, setProduct] = useState<BarcodeProduct | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scanHint, setScanHint] = useState('Skieruj aparat na kod kreskowy produktu');
+  const [scanHint, setScanHint] = useState(() => t('barcode.hintScan'));
 
   useEffect(() => {
     if (isNativeMobile && permission && !permission.granted && permission.canAskAgain) {
@@ -73,12 +78,12 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
     async (rawBarcode: string) => {
       const normalized = normalizeBarcodeInput(rawBarcode);
       if (!isValidBarcode(normalized)) {
-        throw new ApiError('Nie rozpoznano prawidłowego kodu kreskowego', 400);
+        throw new ApiError(t('barcode.invalidBarcode'), 400);
       }
 
       return lookupIngredientByBarcode(householdId, normalized);
     },
-    [householdId],
+    [householdId, t],
   );
 
   const resetScanner = () => {
@@ -86,7 +91,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
     setProduct(null);
     setPreviewUri(null);
     setError(null);
-    setScanHint('Skieruj aparat na kod kreskowy produktu');
+    setScanHint(t('barcode.hintScan'));
   };
 
   const onBarcodeScanned = useCallback(
@@ -98,21 +103,21 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
       scanLockRef.current = true;
       setError(null);
       setIsScanning(true);
-      setScanHint('Wyszukiwanie produktu…');
+      setScanHint(t('barcode.hintSearch'));
 
       try {
         const result = await lookupBarcode(data);
         setProduct(result);
-        setScanHint(`Znaleziono kod: ${result.barcode}`);
+        setScanHint(t('barcode.hintFound', { barcode: result.barcode }));
       } catch (err) {
-        setError(errorMessage(err, 'Nie udało się wyszukać produktu po kodzie'));
+        setError(errorMessage(err, t('barcode.scanFailed')));
         scanLockRef.current = false;
-        setScanHint('Spróbuj ponownie - ustaw kod w kadrze');
+        setScanHint(t('barcode.hintRetry'));
       } finally {
         setIsScanning(false);
       }
     },
-    [isScanning, lookupBarcode],
+    [isScanning, lookupBarcode, t],
   );
 
   const scanCapturedImage = async (uri: string, fileName: string, mimeType: string) => {
@@ -120,17 +125,17 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
     setProduct(null);
     setPreviewUri(uri);
     setIsScanning(true);
-    setScanHint('Odczyt kodu ze zdjęcia…');
+    setScanHint(t('barcode.hintImage'));
 
     try {
       const result = await scanBarcodeFromImage(householdId, { uri, fileName, mimeType });
       scanLockRef.current = true;
       setProduct(result);
-      setScanHint(`Znaleziono kod: ${result.barcode}`);
+      setScanHint(t('barcode.hintFound', { barcode: result.barcode }));
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się odczytać kodu ze zdjęcia'));
+      setError(errorMessage(err, t('barcode.imageFailed')));
       scanLockRef.current = false;
-      setScanHint('Spróbuj ponownie innym zdjęciem');
+      setScanHint(t('barcode.hintImageRetry'));
     } finally {
       setIsScanning(false);
     }
@@ -147,7 +152,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
       }
       await scanCapturedImage(picked.uri, picked.fileName, picked.mimeType);
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się wybrać zdjęcia'));
+      setError(errorMessage(err, t('barcode.pickFailed')));
       setIsScanning(false);
     }
   };
@@ -163,7 +168,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
       }
       await scanCapturedImage(picked.uri, picked.fileName, picked.mimeType);
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się zrobić zdjęcia'));
+      setError(errorMessage(err, t('barcode.photoFailed')));
       setIsScanning(false);
     }
   };
@@ -177,9 +182,9 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
       householdId,
       householdName,
       prefill: {
-        name: product.name ?? `Produkt ${product.barcode}`,
+        name: product.name ?? t('barcode.productFallback', { barcode: product.barcode }),
         barcode: product.barcode,
-        notes: buildPrefillNotes(product),
+        notes: buildPrefillNotes(product, t),
       },
     });
   };
@@ -197,11 +202,9 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
         <AppPageFrame style={isWideWeb ? styles.frameWide : undefined}>
           <ScreenBackButton onPress={() => navigation.goBack()} disabled={isScanning} />
 
-          <Text style={styles.title}>Skanuj kod kreskowy</Text>
+          <Text style={styles.title}>{t('barcode.scanTitle')}</Text>
           <Text style={styles.lead}>
-            {isNativeMobile
-              ? 'Na telefonie kod odczytuje się automatycznie z podglądu aparatu. Możesz też wybrać zdjęcie z galerii.'
-              : 'Na webie wybierz zdjęcie kodu z pliku lub wpisz kod ręcznie.'}
+            {isNativeMobile ? t('barcode.scanLeadMobile') : t('barcode.scanLeadWeb')}
           </Text>
 
           {showLiveCamera ? (
@@ -226,19 +229,19 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
             <View style={styles.fallbackBox}>
               <Text style={styles.fallbackText}>
                 {Platform.OS === 'web'
-                  ? 'Na webie wybierz zdjęcie kodu z pliku.'
+                  ? t('barcode.fallbackWeb')
                   : permission?.granted
                     ? product
-                      ? 'Kod został odczytany. Możesz dodać produkt do lodówki lub zeskanować kolejny.'
-                      : 'Przyznaj dostęp do aparatu, aby włączyć skanowanie na żywo.'
-                    : 'Przyznaj dostęp do aparatu albo wybierz zdjęcie z galerii.'}
+                      ? t('barcode.fallbackDone')
+                      : t('barcode.fallbackPermission')
+                    : t('barcode.fallbackPick')}
               </Text>
               {isNativeMobile && !permission?.granted ? (
                 <Pressable
                   style={[formStyles.primaryButton, styles.actionButton, webPointer]}
                   onPress={() => void requestPermission()}
                 >
-                  <Text style={formStyles.primaryButtonText}>Zezwól na aparat</Text>
+                  <Text style={formStyles.primaryButtonText}>{t('barcode.allowCamera')}</Text>
                 </Pressable>
               ) : null}
               {product ? (
@@ -246,7 +249,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
                   style={[formStyles.secondaryButton, styles.actionButton, webPointer]}
                   onPress={resetScanner}
                 >
-                  <Text style={formStyles.secondaryButtonText}>Skanuj kolejny kod</Text>
+                  <Text style={formStyles.secondaryButtonText}>{t('barcode.scanAnother')}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -271,7 +274,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
                 {isScanning ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={formStyles.primaryButtonText}>Wybierz zdjęcie kodu</Text>
+                  <Text style={formStyles.primaryButtonText}>{t('barcode.pickCodeImage')}</Text>
                 )}
               </Pressable>
             ) : (
@@ -286,7 +289,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
                   onPress={() => void onPickFromCameraFallback()}
                   disabled={isScanning}
                 >
-                  <Text style={formStyles.secondaryButtonText}>Zrób zdjęcie aparatem</Text>
+                  <Text style={formStyles.secondaryButtonText}>{t('barcode.takePhoto')}</Text>
                 </Pressable>
                 <Pressable
                   style={[
@@ -298,7 +301,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
                   onPress={() => void onPickFromGallery()}
                   disabled={isScanning}
                 >
-                  <Text style={formStyles.secondaryButtonText}>Wybierz z galerii</Text>
+                  <Text style={formStyles.secondaryButtonText}>{t('barcode.pickGallery')}</Text>
                 </Pressable>
               </>
             )}
@@ -307,7 +310,7 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
               style={[formStyles.secondaryButton, styles.actionButton, webPointer]}
               onPress={() => navigation.navigate('BarcodeSearch', { householdId, householdName })}
             >
-              <Text style={formStyles.secondaryButtonText}>Wpisz kod ręcznie</Text>
+              <Text style={formStyles.secondaryButtonText}>{t('barcode.enterManually')}</Text>
             </Pressable>
           </View>
 
@@ -315,24 +318,26 @@ export function BarcodeScanScreen({ navigation, route }: Props) {
 
           {product ? (
             <View style={styles.resultBox}>
-              <Text style={styles.resultLabel}>Znaleziono produkt</Text>
-              <Text style={styles.productName}>{product.name ?? 'Bez nazwy'}</Text>
-              <Text style={styles.productMeta}>Kod: {product.barcode}</Text>
-              {product.brand ? <Text style={styles.productMeta}>Marka: {product.brand}</Text> : null}
+              <Text style={styles.resultLabel}>{t('barcode.found')}</Text>
+              <Text style={styles.productName}>{product.name ?? t('barcode.noName')}</Text>
+              <Text style={styles.productMeta}>{t('barcode.code', { barcode: product.barcode })}</Text>
+              {product.brand ? (
+                <Text style={styles.productMeta}>{t('barcode.brand', { brand: product.brand })}</Text>
+              ) : null}
 
               <View style={styles.resultActions}>
                 <Pressable
                   style={[formStyles.primaryButton, styles.resultActionButton, webPointer]}
                   onPress={onAddToFridge}
                 >
-                  <Text style={formStyles.primaryButtonText}>Dodaj do lodówki</Text>
+                  <Text style={formStyles.primaryButtonText}>{t('barcode.addToFridge')}</Text>
                 </Pressable>
                 {isNativeMobile ? (
                   <Pressable
                     style={[formStyles.secondaryButton, styles.resultActionButton, webPointer]}
                     onPress={resetScanner}
                   >
-                    <Text style={formStyles.secondaryButtonText}>Skanuj kolejny</Text>
+                    <Text style={formStyles.secondaryButtonText}>{t('barcode.scanAnother')}</Text>
                   </Pressable>
                 ) : null}
               </View>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { FormTextInput } from './FormTextInput';
 import { webPointer } from '../theme/forms';
 
@@ -17,8 +18,11 @@ export function DatePickerField({
   onChange,
   onBlur,
   editable = true,
-  placeholder = 'Wybierz datę',
+  placeholder,
 }: Props) {
+  const { t } = useI18n();
+  const resolvedPlaceholder = placeholder ?? t('datePicker.placeholder');
+
   return (
     <FormTextInput
       {...({ type: 'date' } as TextInputProps)}
@@ -26,7 +30,7 @@ export function DatePickerField({
       onChangeText={onChange}
       onBlur={onBlur}
       editable={editable}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       placeholderTextColor={colors.textMuted}
       autoCapitalize="none"
       autoCorrect={false}

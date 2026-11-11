@@ -24,6 +24,7 @@ import { ScreenBackButton } from '../components/ScreenBackButton';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { HouseholdStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { formStyles, webPointer } from '../theme/forms';
 
 type Props = NativeStackScreenProps<HouseholdStackParamList, 'BarcodeSearch'>;
@@ -35,15 +36,19 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function buildPrefillNotes(product: BarcodeProduct): string | null {
+function buildPrefillNotes(
+  product: BarcodeProduct,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string | null {
   const parts = [product.brand, product.quantity, product.categories].filter(Boolean);
   if (parts.length === 0) {
-    return `Kod kreskowy: ${product.barcode}`;
+    return t('barcode.prefillCodeOnly', { barcode: product.barcode });
   }
-  return `${parts.join(' · ')} · Kod: ${product.barcode}`;
+  return `${parts.join(' · ')}${t('barcode.prefillCodeSuffix', { barcode: product.barcode })}`;
 }
 
 export function BarcodeSearchScreen({ navigation, route }: Props) {
+  const { t } = useI18n();
   const { householdId, householdName } = route.params;
   const { isWideWeb } = useResponsiveLayout();
 
@@ -58,7 +63,7 @@ export function BarcodeSearchScreen({ navigation, route }: Props) {
 
     const normalized = normalizeBarcodeInput(barcode);
     if (!isValidBarcode(normalized)) {
-      setError('Podaj kod kreskowy (8–14 cyfr)');
+      setError(t('barcode.searchInvalid'));
       return;
     }
 
@@ -68,7 +73,7 @@ export function BarcodeSearchScreen({ navigation, route }: Props) {
       setProduct(result);
       setBarcode(result.barcode);
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się wyszukać produktu'));
+      setError(errorMessage(err, t('barcode.searchFailed')));
     } finally {
       setIsSearching(false);
     }
@@ -83,9 +88,9 @@ export function BarcodeSearchScreen({ navigation, route }: Props) {
       householdId,
       householdName,
       prefill: {
-        name: product.name ?? `Produkt ${product.barcode}`,
+        name: product.name ?? t('barcode.productFallback', { barcode: product.barcode }),
         barcode: product.barcode,
-        notes: buildPrefillNotes(product),
+        notes: buildPrefillNotes(product, t),
       },
     });
   };
@@ -101,15 +106,13 @@ export function BarcodeSearchScreen({ navigation, route }: Props) {
         <AppPageFrame style={isWideWeb ? styles.frameWide : undefined}>
           <ScreenBackButton onPress={() => navigation.goBack()} disabled={isSearching} />
 
-          <Text style={styles.title}>Wyszukaj po kodzie kreskowym</Text>
-          <Text style={styles.lead}>
-            Wpisz kod ręcznie, gdy nie możesz zeskanować zdjęcia. Wyszukiwanie produktu odbywa się przez backend.
-          </Text>
+          <Text style={styles.title}>{t('barcode.searchTitle')}</Text>
+          <Text style={styles.lead}>{t('barcode.searchLead')}</Text>
 
           <View style={[styles.searchPanel, isWideWeb && styles.searchPanelWide]}>
-            <FormField label="Kod kreskowy" hint="EAN-8, EAN-13 lub inny kod numeryczny z opakowania">
+            <FormField label={t('barcode.searchFieldLabel')} hint={t('barcode.searchFieldHint')}>
               <FormTextInput
-                placeholder="np. 5901234123457"
+                placeholder={t('ingredient.barcodePlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={barcode}
                 onChangeText={setBarcode}
@@ -133,7 +136,7 @@ export function BarcodeSearchScreen({ navigation, route }: Props) {
               {isSearching ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={formStyles.primaryButtonText}>Szukaj produktu</Text>
+                <Text style={formStyles.primaryButtonText}>{t('barcode.searchButton')}</Text>
               )}
             </Pressable>
 
@@ -141,7 +144,7 @@ export function BarcodeSearchScreen({ navigation, route }: Props) {
               style={[formStyles.secondaryButton, styles.searchButton, webPointer]}
               onPress={() => navigation.navigate('BarcodeScan', { householdId, householdName })}
             >
-              <Text style={formStyles.secondaryButtonText}>Skanuj zdjęciem</Text>
+              <Text style={formStyles.secondaryButtonText}>{t('barcode.scanByImage')}</Text>
             </Pressable>
           </View>
 
@@ -149,23 +152,29 @@ export function BarcodeSearchScreen({ navigation, route }: Props) {
 
           {product ? (
             <View style={styles.resultBox}>
-              <Text style={styles.resultLabel}>Znaleziono produkt</Text>
+              <Text style={styles.resultLabel}>{t('barcode.found')}</Text>
               <View style={[styles.resultContent, isWideWeb && styles.resultContentWide]}>
                 {product.imageUrl ? (
                   <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
                 ) : (
                   <View style={styles.productImagePlaceholder}>
-                    <Text style={styles.productImagePlaceholderText}>Brak zdjęcia</Text>
+                    <Text style={styles.productImagePlaceholderText}>{t('barcode.noPhoto')}</Text>
                   </View>
                 )}
 
                 <View style={styles.resultTextCol}>
-                  <Text style={styles.productName}>{product.name ?? 'Bez nazwy'}</Text>
-                  {product.brand ? <Text style={styles.productMeta}>Marka: {product.brand}</Text> : null}
-                  {product.quantity ? (
-                    <Text style={styles.productMeta}>Opakowanie: {product.quantity}</Text>
+                  <Text style={styles.productName}>{product.name ?? t('barcode.noName')}</Text>
+                  {product.brand ? (
+                    <Text style={styles.productMeta}>{t('barcode.brand', { brand: product.brand })}</Text>
                   ) : null}
-                  <Text style={styles.productMeta}>Kod: {product.barcode}</Text>
+                  {product.quantity ? (
+                    <Text style={styles.productMeta}>
+                      {t('barcode.packaging', { quantity: product.quantity })}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.productMeta}>
+                    {t('barcode.code', { barcode: product.barcode })}
+                  </Text>
                   {product.categories ? (
                     <Text style={styles.productCategories} numberOfLines={3}>
                       {product.categories}
@@ -178,7 +187,7 @@ export function BarcodeSearchScreen({ navigation, route }: Props) {
                 style={[formStyles.primaryButton, styles.addButton, webPointer]}
                 onPress={onAddToFridge}
               >
-                <Text style={formStyles.primaryButtonText}>Dodaj do lodówki</Text>
+                <Text style={formStyles.primaryButtonText}>{t('barcode.addToFridge')}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -199,12 +208,8 @@ const styles = StyleSheet.create({
   frameWide: {
     gap: 0,
   },
-  backLink: {
-    marginBottom: 20,
-    alignSelf: 'flex-start',
-  },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
     color: colors.text,
     marginBottom: 8,
@@ -212,7 +217,8 @@ const styles = StyleSheet.create({
   lead: {
     color: colors.textMuted,
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: 16,
+    fontSize: 15,
   },
   searchPanel: {
     backgroundColor: '#FAFCFA',
@@ -220,24 +226,23 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 14,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 8,
+    gap: 12,
   },
   searchPanelWide: {
     padding: 24,
   },
   searchButton: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-    minWidth: 200,
+    width: '100%',
   },
   resultBox: {
-    marginTop: 8,
+    marginTop: 12,
     backgroundColor: '#F0F7F4',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 14,
-    padding: 18,
-    gap: 16,
+    padding: 16,
+    gap: 12,
   },
   resultLabel: {
     fontSize: 13,
@@ -247,7 +252,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   resultContent: {
-    gap: 16,
+    gap: 12,
   },
   resultContentWide: {
     flexDirection: 'row',
@@ -279,7 +284,6 @@ const styles = StyleSheet.create({
   },
   resultTextCol: {
     flex: 1,
-    minWidth: 0,
     gap: 4,
   },
   productName: {
@@ -292,13 +296,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   productCategories: {
-    marginTop: 4,
     fontSize: 13,
     color: colors.textMuted,
-    lineHeight: 18,
+    marginTop: 4,
   },
   addButton: {
-    alignSelf: 'flex-start',
-    minWidth: 220,
+    width: '100%',
   },
 });

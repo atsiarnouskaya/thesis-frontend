@@ -1,5 +1,8 @@
 import { Granularity, IngredientStats } from '../api/statistics';
+import { TranslationValues } from '../i18n/types';
 import { dateToLocalDateString, parseLocalDateToDate, todayLocalDateString } from '../ingredient/ingredientFormat';
+
+type TranslateFn = (key: string, values?: TranslationValues) => string;
 
 export type ProductTotal = {
   name: string;
@@ -11,10 +14,12 @@ export type DateRange = {
   to: string;
 };
 
-export const GRANULARITY_OPTIONS: { value: Granularity; label: string; hint: string }[] = [
-  { value: 'MONTH', label: 'Miesięczna', hint: 'Rozbicie po tygodniach' },
-  { value: 'YEAR', label: 'Roczna', hint: 'Rozbicie po miesiącach' },
-];
+export function getGranularityOptions(t: TranslateFn): { value: Granularity; label: string; hint: string }[] {
+  return [
+    { value: 'MONTH', label: t('statistics.granularityMonthly'), hint: t('statistics.granularityMonthHint') },
+    { value: 'YEAR', label: t('statistics.granularityYearly'), hint: t('statistics.granularityYearHint') },
+  ];
+}
 
 export function createDefaultDateRange(): DateRange {
   const to = todayLocalDateString();
@@ -33,19 +38,19 @@ export function daysBetweenInclusive(from: string, to: string): number {
   return Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
 }
 
-export function granularityLabel(granularity: Granularity): string {
-  return GRANULARITY_OPTIONS.find((option) => option.value === granularity)?.label ?? granularity;
+export function granularityLabel(granularity: Granularity, t: TranslateFn): string {
+  return getGranularityOptions(t).find((option) => option.value === granularity)?.label ?? granularity;
 }
 
-export function granularityDescription(granularity: Granularity): string {
-  const option = GRANULARITY_OPTIONS.find((item) => item.value === granularity);
+export function granularityDescription(granularity: Granularity, t: TranslateFn): string {
+  const option = getGranularityOptions(t).find((item) => item.value === granularity);
   if (!option) {
     return granularity;
   }
   return `${option.label.toLowerCase()} - ${option.hint.toLowerCase()}`;
 }
 
-export function aggregateProductTotals(entries: IngredientStats[]): ProductTotal[] {
+export function aggregateProductTotals(entries: IngredientStats[], intlLocale = 'pl-PL'): ProductTotal[] {
   const totals = new Map<string, number>();
 
   for (const entry of entries) {
@@ -58,7 +63,7 @@ export function aggregateProductTotals(entries: IngredientStats[]): ProductTotal
       if (right.totalCount !== left.totalCount) {
         return right.totalCount - left.totalCount;
       }
-      return left.name.localeCompare(right.name, 'pl');
+      return left.name.localeCompare(right.name, intlLocale);
     });
 }
 
@@ -70,8 +75,9 @@ export function formatPeriodLabel(
   periodStart: string,
   periodEnd: string | null,
   granularity: Granularity,
+  intlLocale = 'pl-PL',
 ): string {
-  const startLabel = formatShortDate(periodStart);
+  const startLabel = formatShortDate(periodStart, intlLocale);
 
   if (!periodEnd) {
     return startLabel;
@@ -79,7 +85,7 @@ export function formatPeriodLabel(
 
   const endDate = parseLocalDateToDate(periodEnd);
   endDate.setDate(endDate.getDate() - 1);
-  const endLabel = formatShortDate(dateToLocalDateString(endDate));
+  const endLabel = formatShortDate(dateToLocalDateString(endDate), intlLocale);
 
   if (granularity === 'MONTH') {
     return `${startLabel} – ${endLabel}`;
@@ -88,20 +94,20 @@ export function formatPeriodLabel(
   return startLabel;
 }
 
-function formatShortDate(value: string): string {
-  return parseLocalDateToDate(value).toLocaleDateString('pl-PL', {
+function formatShortDate(value: string, intlLocale: string): string {
+  return parseLocalDateToDate(value).toLocaleDateString(intlLocale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 }
 
-export function validateDateRange(range: DateRange): string | null {
+export function validateDateRange(range: DateRange, t: TranslateFn): string | null {
   if (!range.from || !range.to) {
-    return 'Wybierz zakres dat';
+    return t('statistics.dateRangeRequired');
   }
   if (range.from > range.to) {
-    return 'Data początkowa nie może być późniejsza niż końcowa';
+    return t('statistics.dateRangeInvalid');
   }
   return null;
 }

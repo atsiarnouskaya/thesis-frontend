@@ -36,6 +36,7 @@ import {
   pickIngredientImageFromLibrary,
   PickedImage,
 } from '../utils/pickIngredientImage';
+import { useI18n } from '../i18n/I18nContext';
 import { toDataUri } from '../utils/base64';
 
 type Props =
@@ -50,8 +51,18 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function IngredientFormScreen({ navigation, route }: Props) {
-  const { householdId, householdName, ingredientId, prefill } = route.params;
+  const {
+    householdId,
+    householdName,
+    ingredientId,
+    prefill,
+    receiptProductQueue,
+    receiptProductQueueTotal,
+    receiptProductQueuePosition,
+  } = route.params;
   const isEditing = Boolean(ingredientId);
+  const isReceiptQueueStep = !isEditing && (receiptProductQueueTotal ?? 0) > 0;
+  const { t } = useI18n();
   const { isWideWeb } = useResponsiveLayout();
 
   const [name, setName] = useState(prefill?.name ?? '');
@@ -88,11 +99,11 @@ export function IngredientFormScreen({ navigation, route }: Props) {
       setPhotoRemoved(false);
       setPhotoHint(null);
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się załadować produktu'));
+      setError(errorMessage(err, t('ingredient.loadFailed')));
     } finally {
       setIsLoading(false);
     }
-  }, [householdId, ingredientId]);
+  }, [householdId, ingredientId, t]);
 
   useEffect(() => {
     void loadIngredient();
@@ -110,10 +121,10 @@ export function IngredientFormScreen({ navigation, route }: Props) {
       if (picked) {
         setPickedPhoto(picked);
         setPhotoRemoved(false);
-        setPhotoHint('Zdjęcie zostanie zapisane po zapisaniu zmian.');
+        setPhotoHint(t('ingredient.photoSavedHint'));
       }
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się wybrać zdjęcia'));
+      setError(errorMessage(err, t('ingredient.pickPhotoFailed')));
     } finally {
       setIsPickingPhoto(false);
     }
@@ -133,10 +144,29 @@ export function IngredientFormScreen({ navigation, route }: Props) {
     resetToHouseholdDetail(navigation, { householdId });
   };
 
+  const openNextReceiptProductForm = () => {
+    if (!receiptProductQueue || receiptProductQueue.length === 0) {
+      resetToHouseholdDetail(navigation, { householdId });
+      return;
+    }
+
+    const [nextName, ...remaining] = receiptProductQueue;
+    const nextPosition = (receiptProductQueuePosition ?? 1) + 1;
+
+    navigation.replace('IngredientForm', {
+      householdId,
+      householdName,
+      prefill: { name: nextName },
+      receiptProductQueue: remaining.length > 0 ? remaining : undefined,
+      receiptProductQueueTotal,
+      receiptProductQueuePosition: nextPosition,
+    });
+  };
+
   const onSubmit = async () => {
     setError(null);
 
-    const validationError = validateIngredientInput({ name, purchasedAt, expiresAt, quantity });
+    const validationError = validateIngredientInput({ name, purchasedAt, expiresAt, quantity }, t);
     if (validationError) {
       setError(validationError);
       return;
@@ -163,11 +193,15 @@ export function IngredientFormScreen({ navigation, route }: Props) {
         return;
       } else {
         await createIngredient(householdId, payload, pickedPhoto);
+        if (receiptProductQueue && receiptProductQueue.length > 0) {
+          openNextReceiptProductForm();
+          return;
+        }
         resetToHouseholdDetail(navigation, { householdId });
         return;
       }
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się zapisać produktu'));
+      setError(errorMessage(err, t('ingredient.saveFailed')));
     } finally {
       setIsSaving(false);
     }
@@ -194,23 +228,30 @@ export function IngredientFormScreen({ navigation, route }: Props) {
         <AppPageFrame style={isWideWeb ? styles.frameWide : undefined}>
           <View style={[styles.header, isWideWeb && styles.headerWide]}>
             <View style={styles.headerText}>
-              <Text style={styles.title}>{isEditing ? 'Edytuj produkt' : 'Nowy produkt'}</Text>
+              <Text style={styles.title}>
+                {isEditing ? t('ingredient.formEditTitle') : t('ingredient.formNewTitle')}
+              </Text>
               <Text style={styles.lead}>
                 {isEditing
-                  ? 'Zaktualizuj dane produktu w lodówce.'
-                  : 'Dodaj produkt z datą zakupu i terminem ważności.'}
+                  ? t('ingredient.formEditLead')
+                  : isReceiptQueueStep
+                    ? t('ingredient.formReceiptLead', {
+                        position: receiptProductQueuePosition ?? 1,
+                        total: receiptProductQueueTotal ?? 0,
+                      })
+                    : t('ingredient.formNewLead')}
               </Text>
             </View>
             <View style={styles.householdBadge}>
-              <Text style={styles.householdBadgeLabel}>Lodówka</Text>
+              <Text style={styles.householdBadgeLabel}>{t('common.fridge')}</Text>
               <Text style={styles.householdBadgeName}>{householdName}</Text>
             </View>
           </View>
 
           <View style={[styles.formPanel, isWideWeb && styles.formPanelWide]}>
-            <FormField label="Nazwa">
+            <FormField label={t('ingredient.name')}>
               <FormTextInput
-                placeholder="np. Mleko, Jajka, Ser żółty"
+                placeholder={t('ingredient.namePlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={name}
                 onChangeText={setName}
@@ -219,11 +260,9 @@ export function IngredientFormScreen({ navigation, route }: Props) {
               />
             </FormField>
 
-            <FormField
-              label="Ilość (opcjonalnie)"
-            >
+            <FormField label={t('ingredient.quantity')}>
               <FormTextInput
-                placeholder="np. 2"
+                placeholder={t('ingredient.quantityPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={quantity}
                 onChangeText={setQuantity}
@@ -234,11 +273,9 @@ export function IngredientFormScreen({ navigation, route }: Props) {
               />
             </FormField>
 
-            <FormField
-              label="Kod kreskowy (opcjonalnie)"
-            >
+            <FormField label={t('ingredient.barcode')}>
               <FormTextInput
-                placeholder="np. 5901234123457"
+                placeholder={t('ingredient.barcodePlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={barcode}
                 onChangeText={setBarcode}
@@ -250,13 +287,13 @@ export function IngredientFormScreen({ navigation, route }: Props) {
             </FormField>
 
             <FormField
-              label="Zdjęcie produktu (opcjonalnie)"
+              label={t('ingredient.photo')}
               hint={
                 photoPreviewUri
                   ? isEditing
-                    ? 'Możesz podmienić lub usunąć zdjęcie produktu.'
-                    : 'Zdjęcie zostanie dodane po zapisaniu produktu.'
-                  : 'Dodaj zdjęcie produktu z galerii lub aparatu.'
+                    ? t('ingredient.photoHintEdit')
+                    : t('ingredient.photoHintNew')
+                  : t('ingredient.photoHintAdd')
               }
             >
               {photoPreviewUri ? (
@@ -275,7 +312,7 @@ export function IngredientFormScreen({ navigation, route }: Props) {
                   disabled={isSaving || isPickingPhoto}
                 >
                   <Text style={formStyles.secondaryButtonText}>
-                    {photoPreviewUri ? 'Zmień zdjęcie' : 'Galeria'}
+                    {photoPreviewUri ? t('ingredient.changePhoto') : t('common.gallery')}
                   </Text>
                 </Pressable>
 
@@ -290,7 +327,7 @@ export function IngredientFormScreen({ navigation, route }: Props) {
                     onPress={() => void pickPhoto('camera')}
                     disabled={isSaving || isPickingPhoto}
                   >
-                    <Text style={formStyles.secondaryButtonText}>Aparat</Text>
+                    <Text style={formStyles.secondaryButtonText}>{t('common.camera')}</Text>
                   </Pressable>
                 ) : null}
 
@@ -303,7 +340,7 @@ export function IngredientFormScreen({ navigation, route }: Props) {
                     }}
                     disabled={isSaving || isPickingPhoto}
                   >
-                    <Text style={formStyles.link}>Anuluj wybór</Text>
+                    <Text style={formStyles.link}>{t('ingredient.cancelPhotoPick')}</Text>
                   </Pressable>
                 ) : null}
 
@@ -313,11 +350,13 @@ export function IngredientFormScreen({ navigation, route }: Props) {
                     onPress={() => {
                       setPickedPhoto(null);
                       setPhotoRemoved(true);
-                      setPhotoHint('Zdjęcie zostanie usunięte po zapisaniu zmian.');
+                      setPhotoHint(t('ingredient.photoRemovedHint'));
                     }}
                     disabled={isSaving || isPickingPhoto}
                   >
-                    <Text style={[formStyles.link, styles.removePhotoText]}>Usuń zdjęcie</Text>
+                    <Text style={[formStyles.link, styles.removePhotoText]}>
+                      {t('ingredient.removePhoto')}
+                    </Text>
                   </Pressable>
                 ) : null}
 
@@ -330,7 +369,7 @@ export function IngredientFormScreen({ navigation, route }: Props) {
                     }}
                     disabled={isSaving || isPickingPhoto}
                   >
-                    <Text style={formStyles.link}>Przywróć zdjęcie</Text>
+                    <Text style={formStyles.link}>{t('ingredient.restorePhoto')}</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -339,31 +378,28 @@ export function IngredientFormScreen({ navigation, route }: Props) {
             </FormField>
 
             <View style={[styles.dateRow, isWideWeb && styles.dateRowWide]}>
-              <FormField label="Data zakupu" style={styles.dateField}>
+              <FormField label={t('ingredient.purchasedAt')} style={styles.dateField}>
                 <DatePickerField
                   value={purchasedAt}
                   onChange={setPurchasedAt}
                   editable={!isSaving}
-                  placeholder="Wybierz datę zakupu"
+                  placeholder={t('ingredient.purchasedAtPlaceholder')}
                 />
               </FormField>
 
-              <FormField label="Termin ważności" style={styles.dateField}>
+              <FormField label={t('ingredient.expiresAt')} style={styles.dateField}>
                 <DatePickerField
                   value={expiresAt}
                   onChange={setExpiresAt}
                   editable={!isSaving}
-                  placeholder="Wybierz termin ważności"
+                  placeholder={t('ingredient.expiresAtPlaceholder')}
                 />
               </FormField>
             </View>
 
-            <FormField
-              label="Uwagi"
-              hint="Opcjonalnie. Np. „otwarte”, „dolna półka”, alergeny"
-            >
+            <FormField label={t('ingredient.notes')} hint={t('ingredient.notesHint')}>
               <FormTextInput
-                placeholder="Dodatkowe informacje o produkcie…"
+                placeholder={t('ingredient.notesPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={notes}
                 onChangeText={setNotes}
@@ -389,7 +425,7 @@ export function IngredientFormScreen({ navigation, route }: Props) {
               onPress={leaveForm}
               disabled={isSaving}
             >
-              <Text style={formStyles.secondaryButtonText}>Anuluj</Text>
+              <Text style={formStyles.secondaryButtonText}>{t('common.cancel')}</Text>
             </Pressable>
 
             <Pressable
@@ -407,7 +443,15 @@ export function IngredientFormScreen({ navigation, route }: Props) {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={formStyles.primaryButtonText}>
-                  {isEditing ? 'Zapisz zmiany' : 'Dodaj produkt'}
+                  {isEditing
+                    ? t('ingredient.saveChanges')
+                    : isReceiptQueueStep &&
+                        receiptProductQueue &&
+                        receiptProductQueue.length > 0
+                      ? t('ingredient.saveNext')
+                      : isReceiptQueueStep
+                        ? t('ingredient.saveFinish')
+                        : t('ingredient.addProduct')}
                 </Text>
               )}
             </Pressable>

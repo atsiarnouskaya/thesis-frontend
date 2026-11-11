@@ -33,6 +33,7 @@ import {
   shouldShowExpiryBadge,
   todayLocalDateString,
 } from '../ingredient/ingredientFormat';
+import { useI18n } from '../i18n/I18nContext';
 import { HouseholdStackParamList } from '../navigation/types';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { colors } from '../theme/colors';
@@ -70,13 +71,11 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 function DiscardInfoBanner() {
+  const { t } = useI18n();
   return (
     <View style={styles.infoBanner}>
-      <Text style={styles.infoBannerTitle}>Co oznacza „Wyrzucone”?</Text>
-      <Text style={styles.infoBannerText}>
-        Oznacza, że produkt nie został zjedzony. Ta informacja będzie wykorzystywana przy
-        obliczaniu statystyk i generowaniu listy zakupów.
-      </Text>
+      <Text style={styles.infoBannerTitle}>{t('ingredient.discardBannerTitle')}</Text>
+      <Text style={styles.infoBannerText}>{t('ingredient.discardBannerText')}</Text>
     </View>
   );
 }
@@ -89,6 +88,7 @@ export function HouseholdIngredientsPanel({
   initialStatusFilter,
   onStatusFilterChange,
 }: Props) {
+  const { t, intlLocale } = useI18n();
   const { isWideWeb } = useResponsiveLayout();
   const isStandalone = variant === 'standalone';
 
@@ -161,7 +161,7 @@ export function HouseholdIngredientsPanel({
         setHasNext(result.hasNext);
         setPage(result.page);
       } catch (err) {
-        setError(errorMessage(err, 'Nie udało się pobrać produktów'));
+        setError(errorMessage(err, t('ingredient.fetchFailed')));
         if (!append) {
           setIngredients([]);
           setTotalElements(0);
@@ -172,7 +172,7 @@ export function HouseholdIngredientsPanel({
         setIsLoadingMore(false);
       }
     },
-    [householdId],
+    [householdId, t],
   );
 
   useFocusEffect(
@@ -214,11 +214,18 @@ export function HouseholdIngredientsPanel({
     });
   };
 
+  const openReceiptScan = () => {
+    navigation.navigate('ReceiptScan', {
+      householdId,
+      householdName,
+    });
+  };
+
   const onDelete = (ingredient: Ingredient) => {
     openConfirm({
-      title: 'Usuń produkt',
-      message: `Czy na pewno chcesz usunąć „${ingredient.name}”? Tej operacji nie można cofnąć.`,
-      confirmLabel: 'Usuń',
+      title: t('ingredient.deleteTitle'),
+      message: t('ingredient.deleteMessage', { name: ingredient.name }),
+      confirmLabel: t('common.delete'),
       variant: 'destructive',
       onConfirm: async () => {
         setError(null);
@@ -228,7 +235,7 @@ export function HouseholdIngredientsPanel({
           setIngredients((current) => current.filter((item) => item.id !== ingredient.id));
           setTotalElements((current) => Math.max(0, current - 1));
         } catch (err) {
-          setError(errorMessage(err, 'Nie udało się usunąć produktu'));
+          setError(errorMessage(err, t('ingredient.deleteFailed')));
         } finally {
           setPendingAction(null);
         }
@@ -238,9 +245,9 @@ export function HouseholdIngredientsPanel({
 
   const onConsume = (ingredient: Ingredient) => {
     openConfirm({
-      title: 'Oznacz jako zjedzone',
-      message: `Czy produkt „${ingredient.name}” został zjedzony?`,
-      confirmLabel: 'Zjedzone',
+      title: t('ingredient.consumeTitle'),
+      message: t('ingredient.consumeMessage', { name: ingredient.name }),
+      confirmLabel: t('ingredient.consumeConfirm'),
       variant: 'default',
       onConfirm: async () => {
         setError(null);
@@ -250,7 +257,7 @@ export function HouseholdIngredientsPanel({
           setIngredients((current) => current.filter((item) => item.id !== ingredient.id));
           setTotalElements((current) => Math.max(0, current - 1));
         } catch (err) {
-          setError(errorMessage(err, 'Nie udało się oznaczyć produktu jako zjedzonego'));
+          setError(errorMessage(err, t('ingredient.consumeFailed')));
         } finally {
           setPendingAction(null);
         }
@@ -260,9 +267,9 @@ export function HouseholdIngredientsPanel({
 
   const onDiscard = (ingredient: Ingredient) => {
     openConfirm({
-      title: 'Oznacz jako wyrzucone',
-      message: `Czy produkt „${ingredient.name}” został wyrzucony i nie został zjedzony?`,
-      confirmLabel: 'Wyrzucone',
+      title: t('ingredient.discardTitle'),
+      message: t('ingredient.discardMessage', { name: ingredient.name }),
+      confirmLabel: t('ingredient.discardConfirm'),
       variant: 'default',
       onConfirm: async () => {
         setError(null);
@@ -272,7 +279,7 @@ export function HouseholdIngredientsPanel({
           setIngredients((current) => current.filter((item) => item.id !== ingredient.id));
           setTotalElements((current) => Math.max(0, current - 1));
         } catch (err) {
-          setError(errorMessage(err, 'Nie udało się oznaczyć produktu jako wyrzuconego'));
+          setError(errorMessage(err, t('ingredient.discardFailed')));
         } finally {
           setPendingAction(null);
         }
@@ -285,8 +292,8 @@ export function HouseholdIngredientsPanel({
     (type === undefined || pendingAction.type === type);
 
   const countLabel = isLoading
-    ? 'Ładowanie listy produktów…'
-    : ingredientStatusCountLabel(statusFilter, totalElements);
+    ? t('ingredient.loadingList')
+    : ingredientStatusCountLabel(statusFilter, totalElements, t);
 
   const actionButtons = (
     <View style={[styles.actionButtons, isWideWeb && styles.actionButtonsWide]}>
@@ -299,7 +306,7 @@ export function HouseholdIngredientsPanel({
         ]}
         onPress={openBarcodeScan}
       >
-        <Text style={formStyles.secondaryButtonText}>Skanuj kod</Text>
+        <Text style={formStyles.secondaryButtonText}>{t('ingredient.scanBarcode')}</Text>
       </Pressable>
 
       <Pressable
@@ -311,7 +318,19 @@ export function HouseholdIngredientsPanel({
         ]}
         onPress={openBarcodeSearch}
       >
-        <Text style={formStyles.secondaryButtonText}>Wpisz kod</Text>
+        <Text style={formStyles.secondaryButtonText}>{t('ingredient.enterBarcode')}</Text>
+      </Pressable>
+
+      <Pressable
+        style={[
+          formStyles.secondaryButton,
+          styles.actionButton,
+          isWideWeb ? styles.actionButtonCompact : styles.actionButtonFull,
+          webPointer,
+        ]}
+        onPress={openReceiptScan}
+      >
+        <Text style={formStyles.secondaryButtonText}>{t('ingredient.scanReceipt')}</Text>
       </Pressable>
 
       <Pressable
@@ -325,7 +344,7 @@ export function HouseholdIngredientsPanel({
       >
         <View style={styles.addButtonContent}>
           <Text style={styles.addButtonIcon}>+</Text>
-          <Text style={formStyles.primaryButtonText}>Dodaj produkt</Text>
+          <Text style={formStyles.primaryButtonText}>{t('ingredient.add')}</Text>
         </View>
       </Pressable>
     </View>
@@ -342,7 +361,7 @@ export function HouseholdIngredientsPanel({
             onPress={() => onFilterChange(status)}
           >
             <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-              {ingredientStatusFilterLabel(status)}
+              {ingredientStatusFilterLabel(status, t)}
             </Text>
           </Pressable>
         );
@@ -355,10 +374,10 @@ export function HouseholdIngredientsPanel({
       {isStandalone ? (
         <View style={[styles.header, isWideWeb && styles.headerWide]}>
           <View style={styles.headerText}>
-            <Text style={styles.title}>Produkty</Text>
+            <Text style={styles.title}>{t('common.products')}</Text>
             <Text style={styles.lead}>{countLabel}</Text>
             <View style={styles.householdBadge}>
-              <Text style={styles.householdBadgeLabel}>Lodówka</Text>
+              <Text style={styles.householdBadgeLabel}>{t('common.fridge')}</Text>
               <Text style={styles.householdBadgeName}>{householdName}</Text>
             </View>
           </View>
@@ -385,12 +404,16 @@ export function HouseholdIngredientsPanel({
       ) : ingredients.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>
-            Brak produktów ({ingredientStatusFilterLabel(statusFilter).toLowerCase()})
+            {t('ingredient.emptyTitle', {
+              filter: ingredientStatusFilterLabel(statusFilter, t).toLowerCase(),
+            })}
           </Text>
           <Text style={styles.empty}>
             {statusFilter === 'PURCHASED'
-              ? 'Zacznij od dodania produktu z datą zakupu i terminem ważności.'
-              : `Nie ma jeszcze produktów oznaczonych jako ${ingredientStatusFilterLabel(statusFilter).toLowerCase()}.`}
+              ? t('ingredient.emptyPurchased')
+              : t('ingredient.emptyOther', {
+                  filter: ingredientStatusFilterLabel(statusFilter, t).toLowerCase(),
+                })}
           </Text>
         </View>
       ) : (
@@ -399,7 +422,7 @@ export function HouseholdIngredientsPanel({
             const status = getExpiryStatus(item.expiresAt);
             const showStatusActions = statusFilter === 'PURCHASED';
             const showExpiryBadge = shouldShowExpiryBadge(statusFilter);
-            const quantityLabel = formatIngredientQuantity(item.quantity);
+            const quantityLabel = formatIngredientQuantity(item.quantity, t);
 
             return (
               <View key={item.id} style={[styles.listItem, isWideWeb && styles.listItemWide]}>
@@ -439,14 +462,20 @@ export function HouseholdIngredientsPanel({
                               status === 'soon' && styles.statusSoon,
                             ]}
                           >
-                            <Text style={styles.statusBadgeText}>{expiryStatusLabel(status)}</Text>
+                            <Text style={styles.statusBadgeText}>
+                              {expiryStatusLabel(status, t)}
+                            </Text>
                           </View>
                         ) : null}
                       </View>
                       <Text style={styles.listItemMeta} numberOfLines={1}>
-                        Zakup: {formatLocalDate(item.purchasedAt)} · Ważny do:{' '}
-                        {formatLocalDate(item.expiresAt)}
-                        {quantityLabel ? ` · Ilość: ${quantityLabel}` : ''}
+                        {t('ingredient.purchasedMeta', {
+                          purchased: formatLocalDate(item.purchasedAt, intlLocale),
+                          expires: formatLocalDate(item.expiresAt, intlLocale),
+                        })}
+                        {quantityLabel
+                          ? t('ingredient.quantityMeta', { quantity: quantityLabel })
+                          : ''}
                       </Text>
                       <Text
                         style={[
@@ -486,7 +515,7 @@ export function HouseholdIngredientsPanel({
           {isLoadingMore ? (
             <ActivityIndicator color={colors.primary} />
           ) : (
-            <Text style={formStyles.secondaryButtonText}>Załaduj więcej</Text>
+            <Text style={formStyles.secondaryButtonText}>{t('common.loadMore')}</Text>
           )}
         </Pressable>
       ) : null}

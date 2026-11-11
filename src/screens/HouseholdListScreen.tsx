@@ -22,6 +22,7 @@ import { AppChrome } from '../components/AppChrome';
 import { FormTextInput } from '../components/FormTextInput';
 import { ScreenShell } from '../components/ScreenShell';
 import { formatInstant, roleLabel } from '../household/householdFormat';
+import { useI18n } from '../i18n/I18nContext';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useMobilePageInsets } from '../hooks/useMobilePageInsets';
 import { AppStackParamList, HouseholdStackParamList } from '../navigation/types';
@@ -42,6 +43,7 @@ type Props =
 const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
 
 export function HouseholdListScreen({ navigation, route }: Props) {
+  const { t, intlLocale } = useI18n();
   const { isWideWeb } = useResponsiveLayout();
   const { pagePaddingTop } = useMobilePageInsets();
   const [households, setHouseholds] = useState<Household[]>([]);
@@ -66,11 +68,11 @@ export function HouseholdListScreen({ navigation, route }: Props) {
       setHouseholds(list);
       setPendingJoinRequests(pending);
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się pobrać lodówek'));
+      setError(errorMessage(err, t('household.fetchFailed')));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,7 +84,7 @@ export function HouseholdListScreen({ navigation, route }: Props) {
     setError(null);
     setSuccess(null);
     if (!createName.trim()) {
-      setError('Podaj nazwę lodówki');
+      setError(t('household.createNameRequired'));
       return;
     }
 
@@ -92,12 +94,15 @@ export function HouseholdListScreen({ navigation, route }: Props) {
       setCreateName('');
       setCreateDescription('');
       setSuccess(
-        `Utworzono „${created.name}”. Kod: ${created.invitationWithQr.code}`,
+        t('household.createSuccess', {
+          name: created.name,
+          code: created.invitationWithQr.code,
+        }),
       );
       await loadHouseholds();
       navigation.navigate('HouseholdDetail', { householdId: created.id });
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się utworzyć lodówki'));
+      setError(errorMessage(err, t('household.createFailed')));
     } finally {
       setBusy(null);
     }
@@ -111,7 +116,7 @@ export function HouseholdListScreen({ navigation, route }: Props) {
       setSuccess(null);
       const normalized = code.trim();
       if (!normalized) {
-        setError('Podaj kod zaproszenia');
+        setError(t('household.joinCodeRequired'));
         return;
       }
 
@@ -119,18 +124,16 @@ export function HouseholdListScreen({ navigation, route }: Props) {
       try {
         const request = await requestJoinHousehold(normalized);
         setJoinCode('');
-        setSuccess(
-          `Wysłano prośbę o dołączenie do „${request.householdName}”. Właściciel musi ją zaakceptować.`,
-        );
+        setSuccess(t('household.joinRequestSuccess', { name: request.householdName }));
         await loadHouseholds();
         navigation.setParams({ inviteCode: undefined });
       } catch (err) {
-        setError(errorMessage(err, 'Nie udało się dołączyć do lodówki'));
+        setError(errorMessage(err, t('household.joinFailed')));
       } finally {
         setBusy(null);
       }
     },
-    [loadHouseholds, navigation],
+    [loadHouseholds, navigation, t],
   );
 
   const onJoin = async () => {
@@ -152,24 +155,23 @@ export function HouseholdListScreen({ navigation, route }: Props) {
 
   const page = (
     <>
-      <Text style={[styles.pageTitle, !isNativeMobile && styles.pageTitleWeb]}>Lodówki</Text>
-      <Text style={styles.subtitle}>
-        Wspólne gospodarstwa domowe - utwórz własną lodówkę lub wyślij prośbę o dołączenie kodem od
-        właściciela.
+      <Text style={[styles.pageTitle, !isNativeMobile && styles.pageTitleWeb]}>
+        {t('nav.households')}
       </Text>
+      <Text style={styles.subtitle}>{t('household.listSubtitle')}</Text>
 
       <View style={[styles.actionsRow, isWideWeb && styles.actionsRowWide]}>
         <View style={styles.actionBox}>
-          <Text style={styles.actionTitle}>Nowa lodówka</Text>
+          <Text style={styles.actionTitle}>{t('household.createTitle')}</Text>
           <FormTextInput
-            placeholder="np. Dom, Wspólnota"
+            placeholder={t('household.createNamePlaceholder')}
             placeholderTextColor={colors.textMuted}
             value={createName}
             onChangeText={setCreateName}
             editable={busy === null}
           />
           <FormTextInput
-            placeholder="Opis (opcjonalnie)"
+            placeholder={t('household.createDescriptionPlaceholder')}
             placeholderTextColor={colors.textMuted}
             value={createDescription}
             onChangeText={setCreateDescription}
@@ -190,15 +192,15 @@ export function HouseholdListScreen({ navigation, route }: Props) {
             {busy === 'create' ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={formStyles.primaryButtonText}>Utwórz</Text>
+              <Text style={formStyles.primaryButtonText}>{t('household.createShort')}</Text>
             )}
           </Pressable>
         </View>
 
         <View style={styles.actionBox}>
-          <Text style={styles.actionTitle}>Dołącz kodem</Text>
+          <Text style={styles.actionTitle}>{t('household.joinByCode')}</Text>
           <FormTextInput
-            placeholder="Kod 8 znaków"
+            placeholder={t('household.joinCodePlaceholder')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="characters"
             value={joinCode}
@@ -217,7 +219,7 @@ export function HouseholdListScreen({ navigation, route }: Props) {
             {busy === 'join' ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
-              <Text style={formStyles.secondaryButtonText}>Wyślij prośbę</Text>
+              <Text style={formStyles.secondaryButtonText}>{t('household.joinButton')}</Text>
             )}
           </Pressable>
         </View>
@@ -228,13 +230,15 @@ export function HouseholdListScreen({ navigation, route }: Props) {
 
       {pendingJoinRequests.length > 0 ? (
         <>
-          <Text style={styles.listHeading}>Oczekujące prośby</Text>
+          <Text style={styles.listHeading}>{t('household.pendingRequests')}</Text>
           <View style={styles.pendingList}>
             {pendingJoinRequests.map((request) => (
               <View key={request.id} style={styles.pendingItem}>
                 <Text style={styles.pendingTitle}>{request.householdName}</Text>
                 <Text style={styles.pendingMeta}>
-                  Wysłano {formatInstant(request.requestedAt)} · czeka na akceptację właściciela
+                  {t('household.pendingSentMeta', {
+                    date: formatInstant(request.requestedAt, intlLocale),
+                  })}
                 </Text>
               </View>
             ))}
@@ -242,12 +246,12 @@ export function HouseholdListScreen({ navigation, route }: Props) {
         </>
       ) : null}
 
-      <Text style={styles.listHeading}>Twoje lodówki</Text>
+      <Text style={styles.listHeading}>{t('household.listTitle')}</Text>
 
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={styles.loader} />
       ) : households.length === 0 ? (
-        <Text style={styles.empty}>Nie należysz jeszcze do żadnej lodówki.</Text>
+        <Text style={styles.empty}>{t('household.emptyNoMembership')}</Text>
       ) : (
         <View style={styles.list}>
           {households.map((item) => (
@@ -259,7 +263,10 @@ export function HouseholdListScreen({ navigation, route }: Props) {
               <View style={styles.listItemMain}>
                 <Text style={styles.listItemTitle}>{item.name}</Text>
                 <Text style={styles.listItemMeta}>
-                  {roleLabel(item.myRole)} · od {formatInstant(item.createdAt)}
+                  {t('household.memberMeta', {
+                    role: roleLabel(item.myRole, t),
+                    date: formatInstant(item.createdAt, intlLocale),
+                  })}
                 </Text>
               </View>
               <Text style={styles.listItemChevron}>→</Text>

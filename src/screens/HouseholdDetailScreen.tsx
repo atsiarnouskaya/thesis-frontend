@@ -47,6 +47,7 @@ import { useMobilePageInsets } from '../hooks/useMobilePageInsets';
 import { AppStackParamList, HouseholdStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
+import { useI18n } from '../i18n/I18nContext';
 import { copyTextToClipboard } from '../utils/clipboard';
 
 type Props =
@@ -66,6 +67,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function HouseholdDetailScreen({ navigation, route }: Props) {
+  const { t, intlLocale } = useI18n();
   const { householdId, ingredientStatusFilter, section } = route.params;
   const appNavigation = navigation as NativeStackNavigationProp<AppStackParamList>;
   const householdNavigation =
@@ -102,14 +104,14 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
       setMembers(m);
       setPendingJoinRequests(pending);
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się załadować lodówki'));
+      setError(errorMessage(err, t('household.loadDetailFailed')));
       setHousehold(null);
       setMembers([]);
       setPendingJoinRequests([]);
     } finally {
       setIsLoading(false);
     }
-  }, [householdId]);
+  }, [householdId, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -123,9 +125,9 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
     }
     try {
       await copyTextToClipboard(buildHouseholdJoinUrl(invitation.code));
-      setCopyHint('Link do dołączenia skopiowany / udostępniony.');
+      setCopyHint(t('household.copyLinkSuccess'));
     } catch (err) {
-      setCopyHint(err instanceof Error ? err.message : 'Nie udało się skopiować linku');
+      setCopyHint(err instanceof Error ? err.message : t('household.copyLinkFailed'));
     }
   };
 
@@ -136,10 +138,10 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
     try {
       const updated = await acceptJoinRequest(requestId);
       setHousehold(updated);
-      setCopyHint('Zaakceptowano prośbę o dołączenie.');
+      setCopyHint(t('household.joinAccepted'));
       await load();
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się zaakceptować prośby'));
+      setError(errorMessage(err, t('household.joinAcceptFailed')));
     } finally {
       setActingRequestId(null);
     }
@@ -152,9 +154,9 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
     try {
       await rejectJoinRequest(requestId);
       setPendingJoinRequests((current) => current.filter((item) => item.id !== requestId));
-      setCopyHint('Odrzucono prośbę o dołączenie.');
+      setCopyHint(t('household.joinRejected'));
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się odrzucić prośby'));
+      setError(errorMessage(err, t('household.joinRejectFailed')));
     } finally {
       setActingRequestId(null);
     }
@@ -208,7 +210,7 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
       {activeTab === 'settings' ? (
         <View>
           <View style={[styles.inviteBox, expired && styles.inviteBoxExpired]}>
-            <Text style={styles.inviteLabel}>Kod i QR zaproszenia</Text>
+            <Text style={styles.inviteLabel}>{t('household.inviteCodeQrTitle')}</Text>
 
             <View
               style={[
@@ -224,14 +226,11 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
                   {invitation!.code}
                 </Text>
                 <Text style={[styles.expiryText, expired && styles.expiryExpired]}>
-                  {invitationExpiryLabel(invitation!.expiresAt)}
+                  {invitationExpiryLabel(invitation!.expiresAt, t, intlLocale)}
                 </Text>
                 <Text style={styles.inviteHint}>
-                  Udostępnij QR lub link - po zalogowaniu użytkownik wyśle prośbę o dołączenie.
-                  Właściciel musi ją zaakceptować w tej sekcji.
-                  {household!.myRole === 'OWNER'
-                    ? ' Nowy kod wygenerujesz wyżej.'
-                    : ''}
+                  {t('household.inviteShareHint')}
+                  {household!.myRole === 'OWNER' ? t('household.inviteShareHintOwner') : ''}
                 </Text>
               </View>
             </View>
@@ -246,7 +245,7 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
                 ]}
                 onPress={() => void onCopyInvite()}
               >
-                <Text style={formStyles.secondaryButtonText}>Kopiuj link dołączenia</Text>
+                <Text style={formStyles.secondaryButtonText}>{t('household.copyJoinLink')}</Text>
               </Pressable>
             </View>
           </View>
@@ -254,7 +253,7 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
           {household!.myRole === 'OWNER' && pendingJoinRequests.length > 0 ? (
             <>
               <Text style={styles.sectionTitle}>
-                Prośby o dołączenie ({pendingJoinRequests.length})
+                {t('household.joinRequestsTitle', { count: pendingJoinRequests.length })}
               </Text>
               <View
                 style={[styles.pendingRequestsList, isWideWeb && styles.pendingRequestsListWide]}
@@ -268,7 +267,7 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
                       <Text style={styles.memberName}>{request.displayName}</Text>
                       <Text style={styles.memberEmail}>{request.email}</Text>
                       <Text style={styles.pendingRequestMeta}>
-                        {formatInstant(request.requestedAt)}
+                        {formatInstant(request.requestedAt, intlLocale)}
                       </Text>
                     </View>
                     <View
@@ -291,7 +290,7 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
                         {actingRequestId === request.id ? (
                           <ActivityIndicator color="#fff" />
                         ) : (
-                          <Text style={formStyles.primaryButtonText}>Akceptuj</Text>
+                          <Text style={formStyles.primaryButtonText}>{t('household.accept')}</Text>
                         )}
                       </Pressable>
                       <Pressable
@@ -305,7 +304,7 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
                         onPress={() => void onRejectJoinRequest(request.id)}
                         disabled={actingRequestId !== null}
                       >
-                        <Text style={formStyles.secondaryButtonText}>Odrzuć</Text>
+                        <Text style={formStyles.secondaryButtonText}>{t('household.reject')}</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -313,18 +312,18 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
               </View>
             </>
           ) : household!.myRole === 'OWNER' ? (
-            <Text style={styles.emptyTabHint}>Brak oczekujących próśb o dołączenie.</Text>
+            <Text style={styles.emptyTabHint}>{t('household.noPendingJoin')}</Text>
           ) : null}
         </View>
       ) : null}
 
       {activeTab === 'settings' ? (
         <View>
-          <Text style={styles.sectionTitle}>Członkowie lodówki</Text>
+          <Text style={styles.sectionTitle}>{t('household.membersTitle')}</Text>
           <Text style={styles.tabLead}>
             {members.length === 1
-              ? '1 osoba ma dostęp do tej lodówki.'
-              : `${members.length} osób ma dostęp do tej lodówki.`}
+              ? t('household.membersLeadOne')
+              : t('household.membersLeadMany', { count: members.length })}
           </Text>
           <View style={[styles.membersList, isWideWeb && styles.membersListWide]}>
             {members.map((member) => (
@@ -337,7 +336,7 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
                   <Text style={styles.memberEmail}>{member.email}</Text>
                 </View>
                 <View style={styles.memberBadge}>
-                  <Text style={styles.memberBadgeText}>{roleLabel(member.role)}</Text>
+                  <Text style={styles.memberBadgeText}>{roleLabel(member.role, t)}</Text>
                 </View>
               </View>
             ))}
@@ -365,22 +364,46 @@ export function HouseholdDetailScreen({ navigation, route }: Props) {
 
       {household && invitation ? (
         <View style={styles.cardBodyWide}>
-          <HouseholdSectionsLayout activeTab={activeTab} onChange={onSectionChange}>
-            <View style={[styles.tabPanel, isWideWeb && styles.tabPanelWide]}>
-              <View style={styles.mobileHeader}>
+          {isNativeMobile ? (
+            <View style={styles.mobileHeader}>
               <Text style={styles.title}>{household.name}</Text>
               {household.description ? (
                 <Text style={styles.description}>{household.description}</Text>
               ) : null}
               <View style={styles.mobileMetaRow}>
                 <View style={styles.mobileRolePill}>
-                  <Text style={styles.mobileRolePillText}>{roleLabel(household.myRole)}</Text>
+                  <Text style={styles.mobileRolePillText}>{roleLabel(household.myRole, t)}</Text>
                 </View>
                 <Text style={styles.metaCompact}>
                   Utworzono {formatInstant(household.createdAt)}
                 </Text>
               </View>
             </View>
+          ) : null}
+          <HouseholdSectionsLayout activeTab={activeTab} onChange={onSectionChange}>
+            <View
+              style={[
+                styles.tabPanel,
+                isWideWeb && styles.tabPanelWide,
+                isNativeMobile && styles.tabPanelMobile,
+              ]}
+            >
+              {!isNativeMobile ? (
+                <View style={styles.mobileHeader}>
+                  <Text style={styles.title}>{household.name}</Text>
+                  {household.description ? (
+                    <Text style={styles.description}>{household.description}</Text>
+                  ) : null}
+                  <View style={styles.mobileMetaRow}>
+                    <View style={styles.mobileRolePill}>
+                      <Text style={styles.mobileRolePillText}>{roleLabel(household.myRole, t)}</Text>
+                    </View>
+                    <Text style={styles.metaCompact}>
+                      Utworzono {formatInstant(household.createdAt)}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
               {isWideWeb ? (
                 <ScrollView
                   style={[styles.tabPanelScroll, stableScrollbarStyle]}
@@ -531,6 +554,10 @@ const styles = StyleSheet.create({
   tabPanelWide: {
     flex: 1,
     minHeight: 0,
+  },
+  tabPanelMobile: {
+    alignSelf: 'stretch',
+    maxWidth: '100%',
   },
   tabPanelScroll: {
     flex: 1,

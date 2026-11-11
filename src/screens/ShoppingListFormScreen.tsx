@@ -32,6 +32,7 @@ import {
   ShoppingListItemDraft,
   validateShoppingListInput,
 } from '../shoppingList/shoppingListFormat';
+import { useI18n } from '../i18n/I18nContext';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
 
@@ -57,6 +58,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
   const isMlReview = mlDraft != null;
   const isMlGeneration = logisticRegressionGeneration === true;
   const isEditing = shoppingList != null && !isMlGeneration;
+  const { t } = useI18n();
   const appNavigation = navigation as NativeStackNavigationProp<AppStackParamList>;
   const { isWideWeb } = useResponsiveLayout();
   const nextItemId = useRef((shoppingList?.items.length ?? 1) + 1);
@@ -83,20 +85,20 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
   const [mlSuccessMessage, setMlSuccessMessage] = useState<string | null>(null);
 
   const screenTitle = isMlReview
-    ? 'Dostosuj listę z modelu ML'
+    ? t('shopping.formMlReview')
     : isMlGeneration
-      ? 'Nowa lista (model ML)'
+      ? t('shopping.formMlNew')
       : isEditing
-        ? 'Edytuj listę zakupów'
-        : 'Nowa lista zakupów';
+        ? t('shopping.formEdit')
+        : t('shopping.formNew');
 
   const screenLead = isMlReview
-    ? `Model zaproponował produkty dla „${householdName}”. Usuń, dodaj lub zmień pozycje - po zapisie model regresji logistycznej uczy się na Twoich wyborach.`
+    ? t('shopping.formLeadMlReview', { name: householdName })
     : isMlGeneration
-      ? `Podaj nazwę listy - produkty zostaną dobrane regresją logistyczną na podstawie produktów w lodówce „${householdName}”.`
+      ? t('shopping.formLeadMlNew', { name: householdName })
       : isEditing
-        ? `Zaktualizuj produkty dla lodówki „${householdName}”.`
-        : `Dodaj produkty potrzebne dla lodówki „${householdName}”.`;
+        ? t('shopping.formLeadEdit', { name: householdName })
+        : t('shopping.formLeadNew', { name: householdName });
 
   const addItem = () => {
     const id = String(nextItemId.current);
@@ -132,7 +134,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
   const onSubmit = async () => {
     setError(null);
     setMlSuccessMessage(null);
-    const validationError = validateShoppingListInput(name, items, {
+    const validationError = validateShoppingListInput(name, items, t, {
       requireItems: !isMlGeneration,
       validateItemFields: !isMlGeneration,
     });
@@ -156,9 +158,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
         });
         const draftId = generated.draftId;
         if (!draftId) {
-          setError(
-            'Serwer nie zwrócił draftId - nie można przejść do edycji i uczenia modelu.',
-          );
+          setError(t('shopping.mlNoDraftId'));
           return;
         }
         navigation.replace('ShoppingListForm', {
@@ -176,7 +176,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
       if (isMlReview && mlDraft) {
         const draftId = mlDraft.draftId || shoppingList?.draftId;
         if (!draftId) {
-          setError('Brak draftId - nie można wysłać danych do uczenia modelu.');
+          setError(t('shopping.mlMissingDraftId'));
           return;
         }
         await acceptGeneratedShoppingList(householdId, {
@@ -187,8 +187,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
             quantity: item.quantity,
           })),
         });
-        const message =
-          'Lista została zapisana. Model regresji logistycznej został zaktualizowany na podstawie Twoich wyborów.';
+        const message = t('shopping.mlSavedMessage');
         if (Platform.OS === 'web') {
           setMlSuccessMessage(message);
           setTimeout(() => {
@@ -200,9 +199,9 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
             });
           }, 1200);
         } else {
-          Alert.alert('Model zaktualizowany', message, [
+          Alert.alert(t('shopping.mlModelUpdatedTitle'), message, [
             {
-              text: 'OK',
+              text: t('datePicker.confirm'),
               onPress: () =>
                 appNavigation.navigate('ShoppingListDetail', {
                   householdId,
@@ -237,12 +236,12 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
         errorMessage(
           err,
           isMlReview
-            ? 'Nie udało się zapisać listy i wysłać danych do modelu'
+            ? t('shopping.saveMlFailed')
             : isMlGeneration
-              ? 'Nie udało się wygenerować listy modelem ML'
+              ? t('shopping.generateMlFailed')
               : isEditing
-                ? 'Nie udało się zaktualizować listy zakupów'
-                : 'Nie udało się utworzyć listy zakupów',
+                ? t('shopping.updateFailed')
+                : t('shopping.createFailed'),
         ),
       );
     } finally {
@@ -251,12 +250,12 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
   };
 
   const submitLabel = isMlReview
-    ? 'Zapisz i ucz model'
+    ? t('shopping.submitMlReview')
     : isMlGeneration
-      ? 'Generuj modelem ML'
+      ? t('shopping.submitMlGenerate')
       : isEditing
-        ? 'Zapisz zmiany'
-        : 'Utwórz listę';
+        ? t('ingredient.saveChanges')
+        : t('shopping.submitCreate');
 
   const showItemsSection = !isMlGeneration;
   const showItemCheckboxes = isEditing && !isMlReview;
@@ -281,27 +280,27 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
               <Text style={styles.lead}>{screenLead}</Text>
             </View>
             <View style={styles.householdBadge}>
-              <Text style={styles.householdBadgeLabel}>Lodówka</Text>
+              <Text style={styles.householdBadgeLabel}>{t('common.fridge')}</Text>
               <Text style={styles.householdBadgeName}>{householdName}</Text>
             </View>
           </View>
 
           <View style={styles.formPanel}>
-            <FormField label="Nazwa listy">
+            <FormField label={t('shopping.listName')}>
               <FormTextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="np. Zakupy na weekend"
+                placeholder={t('shopping.listNamePlaceholder')}
                 editable={!isSaving && !isMlReview}
                 autoCapitalize="sentences"
               />
             </FormField>
 
-            <FormField label="Opis (opcjonalnie)">
+            <FormField label={t('shopping.descriptionOptional')}>
               <FormTextInput
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Dodatkowe informacje…"
+                placeholder={t('shopping.descriptionPlaceholder')}
                 editable={!isSaving && !isMlReview}
                 multiline
                 numberOfLines={3}
@@ -311,23 +310,20 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
 
             {isMlReview ? (
               <View style={styles.mlBanner}>
-                <Text style={styles.mlBannerText}>
-                  Pozycje oznaczone przez model możesz edytować jak zwykłą listę. Zapis
-                  wyśle poprawki do serwera i zaktualizuje wagi regresji logistycznej.
-                </Text>
+                <Text style={styles.mlBannerText}>{t('shopping.mlBannerText')}</Text>
               </View>
             ) : null}
 
             {showItemsSection ? (
               <>
             <View style={styles.itemsHeader}>
-              <Text style={styles.sectionTitle}>Pozycje</Text>
+              <Text style={styles.sectionTitle}>{t('shopping.itemsSection')}</Text>
               <Pressable
                 style={[formStyles.secondaryButton, styles.addItemButton, webPointer]}
                 onPress={addItem}
                 disabled={isSaving}
               >
-                <Text style={formStyles.secondaryButtonText}>+ Dodaj pozycję</Text>
+                <Text style={formStyles.secondaryButtonText}>{t('shopping.addItem')}</Text>
               </Pressable>
             </View>
 
@@ -344,7 +340,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
                       onPress={() => toggleItem(item.id)}
                       disabled={isSaving}
                       accessibilityLabel={
-                        item.checked ? 'Oznacz jako niezrealizowane' : 'Oznacz jako zrealizowane'
+                        item.checked ? t('shopping.markUndone') : t('shopping.markDone')
                       }
                     >
                       <Text
@@ -361,7 +357,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
                     <FormTextInput
                       value={item.name}
                       onChangeText={(value) => updateItem(item.id, 'name', value)}
-                      placeholder="Nazwa produktu"
+                      placeholder={t('shopping.itemNamePlaceholder')}
                       editable={!isSaving}
                     />
                   </View>
@@ -369,7 +365,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
                     <FormTextInput
                       value={item.quantity}
                       onChangeText={(value) => updateItem(item.id, 'quantity', value)}
-                      placeholder="Ilość"
+                      placeholder={t('shopping.quantityPlaceholder')}
                       keyboardType="number-pad"
                       editable={!isSaving}
                     />
@@ -378,9 +374,9 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
                     style={[styles.removeButton, webPointer]}
                     onPress={() => removeItem(item.id)}
                     disabled={isSaving}
-                    accessibilityLabel={`Usuń pozycję ${index + 1}`}
+                    accessibilityLabel={t('shopping.removeItem', { index: index + 1 })}
                   >
-                    <Text style={styles.removeButtonText}>Usuń</Text>
+                    <Text style={styles.removeButtonText}>{t('common.delete')}</Text>
                   </Pressable>
                 </View>
               ))}
@@ -405,7 +401,7 @@ export function ShoppingListFormScreen({ navigation, route }: Props) {
               onPress={() => navigation.goBack()}
               disabled={isSaving}
             >
-              <Text style={formStyles.secondaryButtonText}>Anuluj</Text>
+              <Text style={formStyles.secondaryButtonText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable
               style={[

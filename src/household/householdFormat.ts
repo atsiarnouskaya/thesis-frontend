@@ -1,12 +1,15 @@
 import { MemberRole } from '../api/household';
+import { TranslationValues } from '../i18n/types';
 
-export function roleLabel(role: MemberRole): string {
-  return role === 'OWNER' ? 'Właściciel' : 'Członek';
+type TranslateFn = (key: string, values?: TranslationValues) => string;
+
+export function roleLabel(role: MemberRole, t: TranslateFn): string {
+  return role === 'OWNER' ? t('household.roleOwner') : t('household.roleMember');
 }
 
-export function formatInstant(iso: string): string {
+export function formatInstant(iso: string, intlLocale = 'pl-PL'): string {
   try {
-    return new Date(iso).toLocaleDateString('pl-PL', {
+    return new Date(iso).toLocaleDateString(intlLocale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -16,9 +19,9 @@ export function formatInstant(iso: string): string {
   }
 }
 
-export function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string, intlLocale = 'pl-PL'): string {
   try {
-    return new Date(iso).toLocaleString('pl-PL', {
+    return new Date(iso).toLocaleString(intlLocale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -41,12 +44,17 @@ export function isInvitationExpired(expiresAt: string | null | undefined): boole
   return time <= Date.now();
 }
 
-export function invitationExpiryLabel(expiresAt: string | null | undefined): string {
+export function invitationExpiryLabel(
+  expiresAt: string | null | undefined,
+  t: TranslateFn,
+  intlLocale = 'pl-PL',
+): string {
   if (!expiresAt) {
-    return 'Brak daty ważności w odpowiedzi API';
+    return t('household.invitationNoExpiry');
   }
+  const date = formatDateTime(expiresAt, intlLocale);
   if (isInvitationExpired(expiresAt)) {
-    return `Wygasł ${formatDateTime(expiresAt)} - wygeneruj nowy kod (właściciel).`;
+    return t('household.invitationExpired', { date });
   }
-  return `Ważny do ${formatDateTime(expiresAt)}`;
+  return t('household.invitationValidUntil', { date });
 }

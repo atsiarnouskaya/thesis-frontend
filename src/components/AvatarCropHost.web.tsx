@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Cropper, { Area } from 'react-easy-crop';
+import { useI18n } from '../i18n/I18nContext';
 import { colors } from '../theme/colors';
 import { createCroppedImageFromArea } from '../utils/createCroppedImage.web';
 import { registerWebCropHost } from '../utils/webCropBridge';
@@ -11,6 +12,7 @@ type CropSession = {
 };
 
 export function AvatarCropHost() {
+  const { t } = useI18n();
   const [session, setSession] = useState<CropSession | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -50,7 +52,7 @@ export function AvatarCropHost() {
 
   const onConfirm = async () => {
     if (!session || !croppedAreaPixels) {
-      setError('Wybierz obszar kadrowania');
+      setError(t('crop.selectArea'));
       return;
     }
 
@@ -64,7 +66,7 @@ export function AvatarCropHost() {
         mimeType: cropped.mimeType,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udało się przyciąć zdjęcia');
+      setError(err instanceof Error ? err.message : t('crop.cropFailed'));
       setSaving(false);
     }
   };
@@ -73,8 +75,8 @@ export function AvatarCropHost() {
     <Modal visible={Boolean(session)} animationType="fade" transparent onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <View style={styles.dialog}>
-          <Text style={styles.title}>Przytnij zdjęcie profilowe</Text>
-          <Text style={styles.subtitle}>Przesuń i powiększ - na avatarze widać tylko kwadrat w środku.</Text>
+          <Text style={styles.title}>{t('crop.profileTitle')}</Text>
+          <Text style={styles.subtitle}>{t('crop.profileSubtitle')}</Text>
 
           <View style={styles.cropWrapper}>
             {session ? (
@@ -95,7 +97,7 @@ export function AvatarCropHost() {
           </View>
 
           <View style={styles.sliderRow}>
-            <Text style={styles.sliderLabel}>Powiększenie</Text>
+            <Text style={styles.sliderLabel}>{t('crop.zoom')}</Text>
             <input
               type="range"
               min={1}
@@ -111,10 +113,12 @@ export function AvatarCropHost() {
 
           <View style={styles.actions}>
             <Pressable style={styles.secondaryButton} onPress={onCancel} disabled={saving}>
-              <Text style={styles.secondaryText}>Anuluj</Text>
+              <Text style={styles.secondaryText}>{t('crop.cancel')}</Text>
             </Pressable>
             <Pressable style={styles.primaryButton} onPress={onConfirm} disabled={saving}>
-              <Text style={styles.primaryText}>{saving ? 'Zapisywanie…' : 'Użyj tego kadru'}</Text>
+              <Text style={styles.primaryText}>
+                {saving ? t('crop.saving') : t('crop.useCrop')}
+              </Text>
             </Pressable>
           </View>
         </View>

@@ -1,3 +1,7 @@
+import { TranslationValues } from '../i18n/types';
+
+type TranslateFn = (key: string, values?: TranslationValues) => string;
+
 export type ShoppingListItemDraft = {
   id: string;
   name: string;
@@ -18,17 +22,18 @@ export function parseShoppingListQuantity(value: string): number | null {
 export function validateShoppingListInput(
   name: string,
   items: ShoppingListItemDraft[],
+  t: TranslateFn,
   options: { requireItems?: boolean; validateItemFields?: boolean } = {},
 ): string | null {
   const requireItems = options.requireItems ?? true;
   const validateItemFields = options.validateItemFields ?? true;
 
   if (!name.trim()) {
-    return 'Podaj nazwę listy zakupów';
+    return t('shopping.validation.name');
   }
 
   if (requireItems && items.length === 0) {
-    return 'Dodaj co najmniej jedną pozycję';
+    return t('shopping.validation.items');
   }
 
   if (!validateItemFields) {
@@ -38,39 +43,39 @@ export function validateShoppingListInput(
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
     if (!item.name.trim()) {
-      return `Podaj nazwę pozycji ${index + 1}`;
+      return t('shopping.validation.itemName', { index: index + 1 });
     }
     if (parseShoppingListQuantity(item.quantity) === null) {
-      return `Ilość pozycji ${index + 1} musi być dodatnią liczbą całkowitą`;
+      return t('shopping.validation.itemQuantity', { index: index + 1 });
     }
   }
 
   return null;
 }
 
-export function formatShoppingListDate(value: string | null): string {
+export function formatShoppingListDate(value: string | null, intlLocale = 'pl-PL'): string {
   if (!value) {
-    return 'Brak daty';
+    return '';
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return 'Brak daty';
+    return '';
   }
 
-  return new Intl.DateTimeFormat('pl-PL', {
+  return new Intl.DateTimeFormat(intlLocale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   }).format(date);
 }
 
-export function shoppingListItemCountLabel(count: number): string {
+export function shoppingListItemCountLabel(count: number, t: TranslateFn): string {
   if (count === 1) {
-    return '1 pozycja';
+    return t('shopping.countOne');
   }
   if (count >= 2 && count <= 4) {
-    return `${count} pozycje`;
+    return t('shopping.countFew', { count });
   }
-  return `${count} pozycji`;
+  return t('shopping.countMany', { count });
 }

@@ -27,7 +27,9 @@ import { clearProfile } from '../profile/profileStorage';
 import { AppStackParamList, MobileTabParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
-import { PASSWORD_HINT, PASSWORD_REGEX } from '../utils/passwordPolicy';
+import { LanguageToggle } from '../components/LanguageToggle';
+import { useI18n } from '../i18n/I18nContext';
+import { PASSWORD_REGEX } from '../utils/passwordPolicy';
 
 type Props =
   | NativeStackScreenProps<AppStackParamList, 'Profile'>
@@ -43,6 +45,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function ProfileScreen({ navigation }: Props) {
+  const { t } = useI18n();
   const appNavigation =
     navigation as unknown as NativeStackNavigationProp<AppStackParamList>;
   const { applySessionToken, signOut } = useAuth();
@@ -76,10 +79,10 @@ export function ProfileScreen({ navigation }: Props) {
     try {
       const uploaded = await changeProfilePhoto(source);
       if (uploaded) {
-        setSuccess('Zdjęcie profilowe zostało zaktualizowane.');
+        setSuccess(t('profile.photoUpdated'));
       }
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się zmienić zdjęcia'));
+      setError(errorMessage(err, t('profile.photoFailed')));
     } finally {
       setUploading(false);
     }
@@ -89,7 +92,7 @@ export function ProfileScreen({ navigation }: Props) {
     clearFeedback();
     const next = usernameDraft.trim();
     if (!next) {
-      setError('Podaj nazwę użytkownika');
+      setError(t('profile.usernameRequired'));
       return;
     }
 
@@ -99,9 +102,9 @@ export function ProfileScreen({ navigation }: Props) {
       await applySessionToken(token);
       await refreshProfile();
       setUsernameDraft('');
-      setSuccess('Nazwa użytkownika została zmieniona.');
+      setSuccess(t('profile.usernameSaved'));
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się zmienić nazwy użytkownika'));
+      setError(errorMessage(err, t('profile.usernameFailed')));
     } finally {
       setBusyAction(null);
     }
@@ -111,7 +114,7 @@ export function ProfileScreen({ navigation }: Props) {
     clearFeedback();
     const nextEmail = emailDraft.trim();
     if (!nextEmail || !emailPassword) {
-      setError('Podaj nowy email i obecne hasło');
+      setError(t('profile.emailRequired'));
       return;
     }
 
@@ -126,9 +129,9 @@ export function ProfileScreen({ navigation }: Props) {
       await refreshProfile();
       setEmailDraft('');
       setEmailPassword('');
-      setSuccess('Adres email został zmieniony.');
+      setSuccess(t('profile.emailSaved'));
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się zmienić emaila'));
+      setError(errorMessage(err, t('profile.emailChangeFailed')));
     } finally {
       setBusyAction(null);
     }
@@ -137,15 +140,15 @@ export function ProfileScreen({ navigation }: Props) {
   const onSavePassword = async () => {
     clearFeedback();
     if (!currentPassword || !newPassword) {
-      setError('Podaj obecne i nowe hasło');
+      setError(t('profile.passwordBothRequired'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Nowe hasła nie są identyczne');
+      setError(t('profile.passwordMismatch'));
       return;
     }
     if (!PASSWORD_REGEX.test(newPassword)) {
-      setError(PASSWORD_HINT);
+      setError(t('auth.passwordHint'));
       return;
     }
 
@@ -156,9 +159,9 @@ export function ProfileScreen({ navigation }: Props) {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setSuccess('Hasło zostało zmienione.');
+      setSuccess(t('profile.passwordSaved'));
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się zmienić hasła'));
+      setError(errorMessage(err, t('profile.passwordFailed')));
     } finally {
       setBusyAction(null);
     }
@@ -166,7 +169,7 @@ export function ProfileScreen({ navigation }: Props) {
 
   const performDeleteAccount = async () => {
     if (!deletePassword) {
-      setError('Podaj hasło, aby usunąć konto');
+      setError(t('profile.deletePasswordRequired'));
       return;
     }
 
@@ -179,14 +182,14 @@ export function ProfileScreen({ navigation }: Props) {
       }
       await signOut();
     } catch (err) {
-      setError(errorMessage(err, 'Nie udało się usunąć konta'));
+      setError(errorMessage(err, t('profile.deleteFailed')));
       setBusyAction(null);
     }
   };
 
   const onDeleteAccount = () => {
     clearFeedback();
-    const message = 'Tej operacji nie można cofnąć. Wszystkie dane konta zostaną usunięte.';
+    const message = t('profile.deleteAlertExtra');
 
     if (Platform.OS === 'web') {
       if (globalThis.confirm(message)) {
@@ -195,9 +198,13 @@ export function ProfileScreen({ navigation }: Props) {
       return;
     }
 
-    Alert.alert('Usuń konto', message, [
-      { text: 'Anuluj', style: 'cancel' },
-      { text: 'Usuń', style: 'destructive', onPress: () => void performDeleteAccount() },
+    Alert.alert(t('profile.deleteConfirmTitle'), message, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: () => void performDeleteAccount(),
+      },
     ]);
   };
 
@@ -211,7 +218,10 @@ export function ProfileScreen({ navigation }: Props) {
 
   const page = (
     <View style={[styles.page, isWideWeb && styles.pageWide, { paddingTop: isNativeMobile ? pagePaddingTop : 0 }]}>
-      <Text style={styles.pageTitle}>Mój profil</Text>
+      <View style={styles.langRow}>
+        <LanguageToggle />
+      </View>
+      <Text style={styles.pageTitle}>{t('nav.myProfile')}</Text>
 
       <View style={[styles.hero, isWideWeb && styles.heroWide]}>
         <ProfileAvatar
@@ -237,7 +247,7 @@ export function ProfileScreen({ navigation }: Props) {
             {uploading ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
-              <Text style={formStyles.secondaryButtonText}>Galeria</Text>
+              <Text style={formStyles.secondaryButtonText}>{t('common.gallery')}</Text>
             )}
           </Pressable>
           {Platform.OS !== 'web' ? (
@@ -251,18 +261,18 @@ export function ProfileScreen({ navigation }: Props) {
               onPress={() => void onChangePhoto('camera')}
               disabled={uploading}
             >
-              <Text style={formStyles.secondaryButtonText}>Aparat</Text>
+              <Text style={formStyles.secondaryButtonText}>{t('common.camera')}</Text>
             </Pressable>
           ) : null}
         </View>
-        <Text style={styles.photoHint}>Po wyborze zdjęcia przytnij je do kwadratu.</Text>
+        <Text style={styles.photoHint}>{t('profile.photoCropHint')}</Text>
       </View>
 
       <View style={[styles.sections, isWideWeb && styles.sectionsWide]}>
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Nazwa użytkownika</Text>
+          <Text style={styles.sectionTitle}>{t('profile.usernameSection')}</Text>
           <FormTextInput
-            placeholder="Nowa nazwa"
+            placeholder={t('profile.placeholderNewUsername')}
             placeholderTextColor={colors.textMuted}
             value={usernameDraft}
             onChangeText={setUsernameDraft}
@@ -281,15 +291,15 @@ export function ProfileScreen({ navigation }: Props) {
             {busyAction === 'username' ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={formStyles.primaryButtonText}>Zapisz nazwę</Text>
+              <Text style={formStyles.primaryButtonText}>{t('profile.saveUsername')}</Text>
             )}
           </Pressable>
         </View>
 
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Email</Text>
+          <Text style={styles.sectionTitle}>{t('profile.emailSection')}</Text>
           <FormTextInput
-            placeholder="Nowy email"
+            placeholder={t('profile.placeholderNewEmail')}
             placeholderTextColor={colors.textMuted}
             value={emailDraft}
             onChangeText={setEmailDraft}
@@ -298,7 +308,7 @@ export function ProfileScreen({ navigation }: Props) {
             editable={busyAction === null}
           />
           <FormTextInput
-            placeholder="Obecne hasło"
+            placeholder={t('profile.currentPassword')}
             placeholderTextColor={colors.textMuted}
             value={emailPassword}
             onChangeText={setEmailPassword}
@@ -317,15 +327,15 @@ export function ProfileScreen({ navigation }: Props) {
             {busyAction === 'email' ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={formStyles.primaryButtonText}>Zapisz email</Text>
+              <Text style={formStyles.primaryButtonText}>{t('profile.saveEmail')}</Text>
             )}
           </Pressable>
         </View>
 
         <View style={[styles.sectionCard, isWideWeb && styles.sectionCardHalf]}>
-          <Text style={styles.sectionTitle}>Hasło</Text>
+          <Text style={styles.sectionTitle}>{t('profile.passwordSection')}</Text>
           <FormTextInput
-            placeholder="Obecne hasło"
+            placeholder={t('profile.currentPassword')}
             placeholderTextColor={colors.textMuted}
             value={currentPassword}
             onChangeText={setCurrentPassword}
@@ -333,7 +343,7 @@ export function ProfileScreen({ navigation }: Props) {
             editable={busyAction === null}
           />
           <FormTextInput
-            placeholder="Nowe hasło"
+            placeholder={t('profile.newPassword')}
             placeholderTextColor={colors.textMuted}
             value={newPassword}
             onChangeText={setNewPassword}
@@ -341,14 +351,14 @@ export function ProfileScreen({ navigation }: Props) {
             editable={busyAction === null}
           />
           <FormTextInput
-            placeholder="Powtórz nowe hasło"
+            placeholder={t('profile.placeholderRepeatPassword')}
             placeholderTextColor={colors.textMuted}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
             editable={busyAction === null}
           />
-          <Text style={styles.hint}>{PASSWORD_HINT}</Text>
+          <Text style={styles.hint}>{t('auth.passwordHint')}</Text>
           <Pressable
             style={[
               formStyles.primaryButton,
@@ -361,16 +371,16 @@ export function ProfileScreen({ navigation }: Props) {
             {busyAction === 'password' ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={formStyles.primaryButtonText}>Zapisz hasło</Text>
+              <Text style={formStyles.primaryButtonText}>{t('profile.savePassword')}</Text>
             )}
           </Pressable>
         </View>
 
         <View style={[styles.sectionCard, styles.dangerSection, isWideWeb && styles.sectionCardHalf]}>
-          <Text style={styles.sectionTitle}>Usuń konto</Text>
-          <Text style={styles.hint}>Operacja jest nieodwracalna. Wymagane jest obecne hasło.</Text>
+          <Text style={styles.sectionTitle}>{t('profile.deleteSection')}</Text>
+          <Text style={styles.hint}>{t('profile.deleteHint')}</Text>
           <FormTextInput
-            placeholder="Hasło do potwierdzenia"
+            placeholder={t('profile.placeholderConfirmDelete')}
             placeholderTextColor={colors.textMuted}
             value={deletePassword}
             onChangeText={setDeletePassword}
@@ -389,7 +399,7 @@ export function ProfileScreen({ navigation }: Props) {
             {busyAction === 'delete' ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.dangerButtonText}>Usuń konto</Text>
+              <Text style={styles.dangerButtonText}>{t('profile.deleteButton')}</Text>
             )}
           </Pressable>
         </View>
@@ -400,7 +410,7 @@ export function ProfileScreen({ navigation }: Props) {
 
       {!isWideWeb && Platform.OS === 'web' ? (
         <Pressable style={[styles.linkButton, webPointer]} onPress={() => navigation.goBack()}>
-          <Text style={formStyles.link}>Wróć</Text>
+          <Text style={formStyles.link}>{t('common.goBack')}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -438,6 +448,10 @@ const styles = StyleSheet.create({
   pageWide: {
     paddingHorizontal: 0,
     paddingTop: 0,
+  },
+  langRow: {
+    marginBottom: 12,
+    alignItems: 'flex-end',
   },
   pageTitle: {
     fontSize: 28,

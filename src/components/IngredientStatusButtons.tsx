@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { webPointer } from '../theme/forms';
 
 type Props = {
@@ -22,6 +23,7 @@ export function IngredientStatusButtons({
   layout = 'row',
   plain = false,
 }: Props) {
+  const { t } = useI18n();
   const isBusy = disabled || isConsumePending || isDiscardPending;
 
   return (
@@ -45,7 +47,7 @@ export function IngredientStatusButtons({
         {isConsumePending ? (
           <ActivityIndicator color="#fff" size="small" />
         ) : (
-          <Text style={styles.consumeButtonText}>Zjedzone</Text>
+          <Text style={styles.consumeButtonText}>{t('ingredient.consumeConfirm')}</Text>
         )}
       </Pressable>
 
@@ -62,7 +64,7 @@ export function IngredientStatusButtons({
         {isDiscardPending ? (
           <ActivityIndicator color={colors.textMuted} size="small" />
         ) : (
-          <Text style={styles.discardButtonText}>Wyrzucone</Text>
+          <Text style={styles.discardButtonText}>{t('ingredient.discardConfirm')}</Text>
         )}
       </Pressable>
     </View>

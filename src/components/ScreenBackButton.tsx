@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useI18n } from '../i18n/I18nContext';
 import { colors } from '../theme/colors';
 import { webPointer } from '../theme/forms';
 
@@ -12,20 +13,22 @@ type ScreenBackButtonProps = {
 export function ScreenBackButton({
   onPress,
   disabled,
-  label = 'Wstecz',
+  label,
 }: ScreenBackButtonProps) {
+  const { t } = useI18n();
+  const resolvedLabel = label ?? t('common.back');
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={[styles.root, disabled && styles.disabled, webPointer]}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={resolvedLabel}
     >
       <View style={styles.iconCircle}>
         <Text style={styles.icon}>←</Text>
       </View>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>{resolvedLabel}</Text>
     </Pressable>
   );
 }

@@ -5,7 +5,9 @@ import { useAuth } from '../auth/AuthContext';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { AppStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { formStyles, webPointer } from '../theme/forms';
+import { LanguageToggle } from './LanguageToggle';
 
 type RouteName = keyof AppStackParamList;
 type NavigationRoute = 'Households' | 'Profile';
@@ -18,6 +20,7 @@ type Props = {
 };
 
 export function AppChrome({ navigation, activeRoute, children, scroll = false }: Props) {
+  const { t } = useI18n();
   const { signOut } = useAuth();
   const { isWideWeb } = useResponsiveLayout();
 
@@ -56,16 +59,19 @@ export function AppChrome({ navigation, activeRoute, children, scroll = false }:
     <View style={styles.shell}>
       <View style={styles.sidebar}>
         <Text style={styles.sidebarBrand}>Fridge</Text>
-        <Text style={styles.sidebarTagline}>Panel użytkownika</Text>
+        <Text style={styles.sidebarTagline}>{t('nav.userPanel')}</Text>
         <View style={styles.nav}>
-          {navItem('Households', 'Lodówki')}
-          {navItem('Profile', 'Mój profil')}
+          {navItem('Households', t('nav.households'))}
+          {navItem('Profile', t('nav.myProfile'))}
+        </View>
+        <View style={styles.langWrap}>
+          <LanguageToggle />
         </View>
         <Pressable
           onPress={() => void signOut()}
           style={[styles.logout, webPointer]}
         >
-          <Text style={styles.logoutText}>Wyloguj</Text>
+          <Text style={styles.logoutText}>{t('nav.signOut')}</Text>
         </Pressable>
       </View>
       <View style={styles.contentArea}>{main}</View>
@@ -128,13 +134,17 @@ const styles = StyleSheet.create({
   navItemTextActive: {
     color: colors.primary,
   },
+  langWrap: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
   logout: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
   },
   logoutText: {
     color: colors.error,

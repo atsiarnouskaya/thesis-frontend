@@ -1,39 +1,50 @@
 import { ProductStatus } from '../api/statistics';
+import { TranslationValues } from '../i18n/types';
 import { DateRange } from './statisticsUtils';
+
+type TranslateFn = (key: string, values?: TranslationValues) => string;
 
 export type StatisticsModule = 'purchases' | 'consumed' | 'discarded' | 'interPurchase';
 
-export const STATISTICS_MODULE_OPTIONS: {
+export function getStatisticsModuleOptions(t: TranslateFn): {
   id: StatisticsModule;
   label: string;
   status?: ProductStatus;
-}[] = [
-  { id: 'purchases', label: 'Zakupy' },
-  { id: 'consumed', label: 'Zjedzone', status: 'CONSUMED' },
-  { id: 'discarded', label: 'Wyrzucone', status: 'DISCARD' },
-  { id: 'interPurchase', label: 'Odstępy zakupów' },
-];
-
-export function statisticsModuleLabel(module: StatisticsModule): string {
-  return STATISTICS_MODULE_OPTIONS.find((option) => option.id === module)?.label ?? module;
+}[] {
+  return [
+    { id: 'purchases', label: t('statistics.modulePurchases') },
+    { id: 'consumed', label: t('statistics.moduleConsumed'), status: 'CONSUMED' },
+    { id: 'discarded', label: t('statistics.moduleDiscarded'), status: 'DISCARD' },
+    { id: 'interPurchase', label: t('statistics.moduleInterPurchase') },
+  ];
 }
 
-export function statisticsModuleDescription(module: StatisticsModule): string {
+export function statisticsModuleLabel(module: StatisticsModule, t: TranslateFn): string {
+  return getStatisticsModuleOptions(t).find((option) => option.id === module)?.label ?? module;
+}
+
+export function statisticsModuleDescription(module: StatisticsModule, t: TranslateFn): string {
   switch (module) {
     case 'purchases':
-      return 'Lista produktów kupionych w wybranym okresie.';
+      return t('statistics.modulePurchasesDesc');
     case 'consumed':
-      return 'Najczęściej zjedzone produkty w wybranym okresie.';
+      return t('statistics.moduleConsumedDesc');
     case 'discarded':
-      return 'Najczęściej wyrzucone produkty w wybranym okresie.';
+      return t('statistics.moduleDiscardedDesc');
     case 'interPurchase':
-      return 'Mediana odstępu w dniach między kolejnymi zakupami tego samego produktu. Produkty pojawiają się tutaj jak zostały kupione przynajmniej 2 razy.';
+      return t('statistics.moduleInterPurchaseDesc');
   }
 }
 
 export function statisticsModuleToStatus(module: StatisticsModule): ProductStatus | null {
-  const option = STATISTICS_MODULE_OPTIONS.find((item) => item.id === module);
-  return option?.status ?? null;
+  switch (module) {
+    case 'consumed':
+      return 'CONSUMED';
+    case 'discarded':
+      return 'DISCARD';
+    default:
+      return null;
+  }
 }
 
 export function parseStatusLimitInput(value: string): number | null {
@@ -74,7 +85,8 @@ export function buildInterPurchaseFilterKey(input: {
   return `interPurchase|${rangePart}`;
 }
 
-export function formatInterPurchaseInterval(interval: number): string {
+export function formatInterPurchaseInterval(interval: number, t: TranslateFn): string {
   const formatted = Number.isInteger(interval) ? String(interval) : interval.toFixed(1);
-  return `~ ${formatted.replace('.', ',')} dni`;
+  const localized = formatted.replace('.', ',');
+  return t('statistics.interPurchaseDays', { value: localized });
 }

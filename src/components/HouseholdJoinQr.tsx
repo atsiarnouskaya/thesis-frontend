@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { buildHouseholdJoinUrl } from '../household/joinLink';
+import { useI18n } from '../i18n/I18nContext';
 import { colors } from '../theme/colors';
 
 type Props = {
@@ -43,6 +44,7 @@ function buildQrMatrix(value: string): QrMatrix {
 }
 
 export function HouseholdJoinQr({ inviteCode, size = 200 }: Props) {
+  const { t } = useI18n();
   const joinUrl = buildHouseholdJoinUrl(inviteCode);
 
   const matrix = useMemo(() => {
@@ -56,7 +58,7 @@ export function HouseholdJoinQr({ inviteCode, size = 200 }: Props) {
   if (!matrix) {
     return (
       <View style={[styles.box, styles.boxError, { width: size, height: size }]}>
-        <Text style={styles.errorText}>Nie udało się wygenerować kodu QR</Text>
+        <Text style={styles.errorText}>{t('household.joinQrFailed')}</Text>
       </View>
     );
   }
@@ -66,7 +68,7 @@ export function HouseholdJoinQr({ inviteCode, size = 200 }: Props) {
   return (
     <View
       style={[styles.box, { width: size, height: size }]}
-      accessibilityLabel="Kod QR do dołączenia do lodówki"
+      accessibilityLabel={t('household.joinQrA11y')}
     >
       {matrix.cells.map((row, rowIndex) => (
         <View key={`row-${rowIndex}`} style={[styles.row, { height: cellSize }]}>

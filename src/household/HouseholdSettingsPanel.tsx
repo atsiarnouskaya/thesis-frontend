@@ -15,6 +15,7 @@ import {
 import { ApiError } from '../api/client';
 import { FormField } from '../components/FormField';
 import { FormTextInput } from '../components/FormTextInput';
+import { useI18n } from '../i18n/I18nContext';
 import { invitationExpiryLabel, isInvitationExpired } from './householdFormat';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
@@ -34,6 +35,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function HouseholdSettingsPanel({ household, onUpdated, onError, onHint }: Props) {
+  const { t, intlLocale } = useI18n();
   const isOwner = household.myRole === 'OWNER';
   const invitation = household.invitationWithQr;
   const expired = isInvitationExpired(invitation?.expiresAt);
@@ -54,7 +56,7 @@ export function HouseholdSettingsPanel({ household, onUpdated, onError, onHint }
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      onError('Podaj nazwę lodówki');
+      onError(t('household.createNameRequired'));
       return;
     }
 
@@ -65,9 +67,9 @@ export function HouseholdSettingsPanel({ household, onUpdated, onError, onHint }
         description,
       });
       onUpdated(updated);
-      onHint('Zapisano ustawienia lodówki.');
+      onHint(t('household.settingsSavedShort'));
     } catch (err) {
-      onError(errorMessage(err, 'Nie udało się zapisać ustawień'));
+      onError(errorMessage(err, t('household.settingsFailed')));
     } finally {
       setIsSaving(false);
     }
@@ -80,9 +82,9 @@ export function HouseholdSettingsPanel({ household, onUpdated, onError, onHint }
     try {
       const nextInvitation = await regenerateHouseholdInvitation(household.id);
       onUpdated(mergeInvitation(household, nextInvitation));
-      onHint('Wygenerowano nowy kod zaproszenia.');
+      onHint(t('household.inviteRegenerated'));
     } catch (err) {
-      onError(errorMessage(err, 'Nie udało się wygenerować nowego kodu'));
+      onError(errorMessage(err, t('household.regenerateFailed')));
     } finally {
       setIsRegenerating(false);
     }
@@ -94,31 +96,26 @@ export function HouseholdSettingsPanel({ household, onUpdated, onError, onHint }
 
   return (
     <View>
-      <Text style={styles.sectionTitle}>Ustawienia lodówki</Text>
+      <Text style={styles.sectionTitle}>{t('household.settingsPanelTitle')}</Text>
       <Text style={styles.lead}>
-        {isOwner
-          ? 'Zmień dane lodówki oraz zarządzaj dostępem jej członków.'
-          : 'Dane lodówki może edytować właściciel. Poniżej znajdziesz ustawienia dostępu.'}
+        {isOwner ? t('household.settingsLeadOwner') : t('household.settingsLeadMember')}
       </Text>
 
-      <FormField label="Nazwa">
+      <FormField label={t('household.settingsName')}>
         <FormTextInput
           value={name}
           onChangeText={setName}
-          placeholder="Np. Dom, Wspólne mieszkanie"
+          placeholder={t('household.settingsNamePlaceholder')}
           editable={isOwner}
           maxLength={255}
         />
       </FormField>
 
-      <FormField
-        label="Opis"
-        hint="Opcjonalny opis - np. dla kogo jest ta lodówka lub co w niej trzymacie."
-      >
+      <FormField label={t('household.settingsDescription')} hint={t('household.settingsDescriptionHint')}>
         <FormTextInput
           value={description}
           onChangeText={setDescription}
-          placeholder="Krótki opis lodówki"
+          placeholder={t('household.settingsDescriptionPlaceholder')}
           editable={isOwner}
           multiline
           numberOfLines={4}
@@ -141,21 +138,18 @@ export function HouseholdSettingsPanel({ household, onUpdated, onError, onHint }
           {isSaving ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={formStyles.primaryButtonText}>Zapisz zmiany</Text>
+            <Text style={formStyles.primaryButtonText}>{t('household.settingsSave')}</Text>
           )}
         </Pressable>
       ) : null}
 
       <View style={[styles.inviteSection, expired && styles.inviteSectionExpired]}>
-        <Text style={styles.inviteSectionTitle}>Kod zaproszenia</Text>
+        <Text style={styles.inviteSectionTitle}>{t('household.inviteCodeLabel')}</Text>
         <Text style={styles.inviteCode}>{invitation.code}</Text>
         <Text style={[styles.expiryText, expired && styles.expiryExpired]}>
-          {invitationExpiryLabel(invitation.expiresAt)}
+          {invitationExpiryLabel(invitation.expiresAt, t, intlLocale)}
         </Text>
-        <Text style={styles.inviteHint}>
-          Nowy kod unieważnia poprzedni link i QR. Kod oraz opcje udostępniania znajdziesz
-          poniżej.
-        </Text>
+        <Text style={styles.inviteHint}>{t('household.inviteRegenerateHint')}</Text>
 
         {isOwner ? (
           <Pressable
@@ -171,7 +165,7 @@ export function HouseholdSettingsPanel({ household, onUpdated, onError, onHint }
             {isRegenerating ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
-              <Text style={formStyles.secondaryButtonText}>Wygeneruj nowy kod</Text>
+              <Text style={formStyles.secondaryButtonText}>{t('household.inviteRegenerate')}</Text>
             )}
           </Pressable>
         ) : null}

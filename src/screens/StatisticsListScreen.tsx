@@ -39,7 +39,7 @@ import {
   buildStatusFilterKey,
   formatInterPurchaseInterval,
   parseStatusLimitInput,
-  STATISTICS_MODULE_OPTIONS,
+  getStatisticsModuleOptions,
   statisticsModuleDescription,
   statisticsModuleLabel,
   statisticsModuleToStatus,
@@ -56,6 +56,7 @@ import {
   saveStatisticsListState,
 } from '../statistics/statisticsListState';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { formStyles, webPointer } from '../theme/forms';
 
 const STATISTICS_PAGE_WIDTH = 880;
@@ -75,6 +76,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function StatisticsListScreen({ navigation, route }: Props) {
+  const { t, intlLocale } = useI18n();
   const { householdId, householdName } = route.params;
   const appNavigation = navigation as NativeStackNavigationProp<AppStackParamList>;
   const { isWideWeb } = useResponsiveLayout();
@@ -189,7 +191,7 @@ export function StatisticsListScreen({ navigation, route }: Props) {
             endTime: dateRange.to,
           }),
     });
-    const nextProducts = aggregateProductTotals(result.data);
+    const nextProducts = aggregateProductTotals(result.data, intlLocale);
     const nextFirstDate = useFullRange ? result.firstDate : null;
 
     setProducts(nextProducts);
@@ -289,7 +291,7 @@ export function StatisticsListScreen({ navigation, route }: Props) {
 
   const load = useCallback(async () => {
     if (!useFullRange) {
-      const validationError = validateDateRange(dateRange);
+      const validationError = validateDateRange(dateRange, t);
       if (validationError) {
         setError(validationError);
         setProducts([]);
@@ -316,10 +318,10 @@ export function StatisticsListScreen({ navigation, route }: Props) {
         errorMessage(
           err,
           isPurchasesModule
-            ? 'Nie udało się pobrać statystyk'
+            ? t('statistics.fetchFailed')
             : isInterPurchaseModule
-              ? 'Nie udało się pobrać odstępów zakupów'
-              : 'Nie udało się pobrać statystyk statusu',
+              ? t('statistics.fetchInterPurchaseFailed')
+              : t('statistics.fetchStatusFailed'),
         ),
       );
       setProducts([]);
@@ -377,7 +379,7 @@ export function StatisticsListScreen({ navigation, route }: Props) {
         return;
       }
 
-      const validationError = validateDateRange(next);
+      const validationError = validateDateRange(next, t);
       if (validationError) {
         setError(validationError);
         return;
@@ -462,18 +464,18 @@ export function StatisticsListScreen({ navigation, route }: Props) {
       ? interPurchaseProducts
       : statusProducts;
   const countColumnLabel = isPurchasesModule
-    ? 'Zakupy'
+    ? t('statistics.modulePurchases')
     : isInterPurchaseModule
-      ? 'Odstęp'
-      : 'Ilość';
+      ? t('statistics.columnInterval')
+      : t('statistics.columnQuantity');
   const moduleDescription = isPurchasesModule
     ? useFullRange
-      ? 'Produkty kupowane w całym dostępnym okresie. Kliknij produkt, aby zobaczyć wykres z wyborem rozbicia.'
-      : 'Produkty kupowane w wybranym okresie. Kliknij produkt, aby zobaczyć wykres z wyborem rozbicia.'
-    : statisticsModuleDescription(activeModule);
+      ? t('statistics.purchasesLeadFull')
+      : t('statistics.purchasesLeadRange')
+    : statisticsModuleDescription(activeModule, t);
 
   const formatInterPurchaseDateRange = (item: InterPurchaseInterval): string =>
-    `${formatLocalDate(item.firstPurchaseDate)} – ${formatLocalDate(item.lastPurchaseDate)}`;
+    `${formatLocalDate(item.firstPurchaseDate, intlLocale)} – ${formatLocalDate(item.lastPurchaseDate, intlLocale)}`;
 
   return (
     <AppChrome navigation={appNavigation} activeRoute="Households" scroll>
@@ -494,19 +496,19 @@ export function StatisticsListScreen({ navigation, route }: Props) {
             <View style={styles.centeredContent}>
           <View style={[styles.header, isWideWeb && styles.headerWide]}>
             <View style={styles.headerText}>
-              <Text style={styles.title}>Statystyki</Text>
+              <Text style={styles.title}>{t('nav.tabStatisticsShort')}</Text>
               <Text style={styles.lead}>{moduleDescription}</Text>
               <View style={styles.householdBadge}>
-                <Text style={styles.householdBadgeLabel}>Lodówka</Text>
+                <Text style={styles.householdBadgeLabel}>{t('common.fridge')}</Text>
                 <Text style={styles.householdBadgeName}>{householdName}</Text>
               </View>
             </View>
           </View>
 
           <View style={styles.moduleSection}>
-            <Text style={formStyles.label}>Moduł</Text>
+            <Text style={formStyles.label}>{t('statistics.moduleLabel')}</Text>
             <View style={[styles.moduleRow, isWideWeb && styles.moduleRowWide]}>
-              {STATISTICS_MODULE_OPTIONS.map((option) => {
+              {getStatisticsModuleOptions(t).map((option) => {
                 const isActive = activeModule === option.id;
                 return (
                   <Pressable
@@ -561,25 +563,25 @@ export function StatisticsListScreen({ navigation, route }: Props) {
                   useFullRange && styles.fullRangeButtonTextActive,
                 ]}
               >
-                Cały zakres czasu
+                {t('statistics.fullTimeRange')}
               </Text>
             </Pressable>
           </View>
 
           {isStatusModule ? (
             <View style={styles.limitSection}>
-              <Text style={formStyles.label}>Limit wyników (opcjonalnie)</Text>
+              <Text style={formStyles.label}>{t('statistics.resultsLimit')}</Text>
               <FormTextInput
                 value={draftStatusLimit}
                 onChangeText={setDraftStatusLimit}
                 onBlur={handleStatusLimitBlur}
                 editable={!isLoading}
-                placeholder="Domyślnie 10"
+                placeholder={t('statistics.resultsLimitPlaceholder')}
                 keyboardType="number-pad"
                 style={styles.limitInput}
               />
               <Text style={styles.limitHint}>
-                Pozostaw puste, aby użyć domyślnego limitu z backendu.
+                {t('statistics.resultsLimitHint')}
               </Text>
             </View>
           ) : null}
@@ -590,19 +592,23 @@ export function StatisticsListScreen({ navigation, route }: Props) {
             <ActivityIndicator color={colors.primary} style={styles.loader} />
           ) : listItems.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>Brak danych</Text>
+              <Text style={styles.emptyTitle}>{t('statistics.emptyDataTitle')}</Text>
               <Text style={styles.emptyText}>
                 {isPurchasesModule
                   ? useFullRange
-                    ? 'Nie zarejestrowano jeszcze żadnych zakupów w tej lodówce.'
-                    : 'W wybranym zakresie dat nie zarejestrowano żadnych zakupów.'
+                    ? t('statistics.empty')
+                    : t('statistics.emptyRange')
                   : isInterPurchaseModule
                     ? useFullRange
-                      ? 'Brak produktów z odstępem co najmniej 1 dnia między zakupami. Odstępy pojawią się po ponownym zakupie tego samego produktu z przerwą co najmniej 1 dnia.'
-                      : 'W wybranym zakresie dat nie znaleziono produktów z odstępem co najmniej 1 dnia między zakupami.'
+                      ? t('statistics.emptyInterPurchaseFull')
+                      : t('statistics.emptyInterPurchaseRange')
                     : useFullRange
-                      ? `Brak produktów oznaczonych jako ${statisticsModuleLabel(activeModule).toLowerCase()} w tej lodówce.`
-                      : `W wybranym zakresie dat nie znaleziono produktów (${statisticsModuleLabel(activeModule).toLowerCase()}).`}
+                      ? t('statistics.emptyStatusFull', {
+                          filter: statisticsModuleLabel(activeModule, t).toLowerCase(),
+                        })
+                      : t('statistics.emptyStatusRange', {
+                          filter: statisticsModuleLabel(activeModule, t).toLowerCase(),
+                        })}
               </Text>
             </View>
           ) : (
@@ -642,7 +648,7 @@ export function StatisticsListScreen({ navigation, route }: Props) {
                             </Text>
                           </View>
                           <Text style={[styles.intervalText, styles.valueCell]} numberOfLines={2}>
-                            {formatInterPurchaseInterval(product.interval)}
+                            {formatInterPurchaseInterval(product.interval, t)}
                           </Text>
                         </View>
                       ))

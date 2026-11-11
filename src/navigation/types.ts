@@ -1,5 +1,6 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { IngredientStatusFilter } from '../ingredient/ingredientFormat';
+import type { ReceiptProductRow } from '../api/receipt';
 import type { ShoppingList } from '../api/shoppingList';
 
 export type AuthStackParamList = {
@@ -36,6 +37,9 @@ export type HouseholdStackParamList = {
       barcode?: string;
       notes?: string | null;
     };
+    receiptProductQueue?: string[];
+    receiptProductQueueTotal?: number;
+    receiptProductQueuePosition?: number;
   };
   BarcodeSearch: {
     householdId: string;
@@ -44,6 +48,15 @@ export type HouseholdStackParamList = {
   BarcodeScan: {
     householdId: string;
     householdName: string;
+  };
+  ReceiptScan: {
+    householdId: string;
+    householdName: string;
+  };
+  ReceiptProducts: {
+    householdId: string;
+    householdName: string;
+    items: ReceiptProductRow[];
   };
   StatisticsList: { householdId: string; householdName: string };
   ShoppingLists: { householdId: string; householdName: string };
@@ -111,6 +124,9 @@ export type AppStackParamList = {
       barcode?: string;
       notes?: string | null;
     };
+    receiptProductQueue?: string[];
+    receiptProductQueueTotal?: number;
+    receiptProductQueuePosition?: number;
   };
   BarcodeSearch: {
     householdId: string;
@@ -119,6 +135,15 @@ export type AppStackParamList = {
   BarcodeScan: {
     householdId: string;
     householdName: string;
+  };
+  ReceiptScan: {
+    householdId: string;
+    householdName: string;
+  };
+  ReceiptProducts: {
+    householdId: string;
+    householdName: string;
+    items: ReceiptProductRow[];
   };
   StatisticsList: { householdId: string; householdName: string };
   ShoppingLists: { householdId: string; householdName: string };

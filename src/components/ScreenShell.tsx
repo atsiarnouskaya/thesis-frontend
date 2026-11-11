@@ -35,6 +35,8 @@ export function ScreenShell({
     variant === 'auth' ? authCardMaxWidth : variant === 'profile' ? profileMaxWidth : contentMaxWidth;
 
   const showCard = card && !isWeb;
+  const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
+  const useMobileFlatLayout = isNativeMobile && !showCard && alignTop;
 
   const inner = (
     <View
@@ -59,7 +61,14 @@ export function ScreenShell({
       {inner}
     </ScrollView>
   ) : (
-    <View style={[styles.centered, isWeb && styles.centeredWeb, alignTop && styles.alignTop]}>
+    <View
+      style={[
+        styles.centered,
+        isWeb && styles.centeredWeb,
+        alignTop && styles.alignTop,
+        useMobileFlatLayout && styles.centeredMobileFlat,
+      ]}
+    >
       {inner}
     </View>
   );
@@ -84,6 +93,11 @@ const styles = StyleSheet.create({
   },
   alignTop: {
     justifyContent: 'flex-start',
+    paddingTop: 0,
+  },
+  centeredMobileFlat: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
     paddingTop: 0,
   },
   scrollContent: {

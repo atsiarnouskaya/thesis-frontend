@@ -34,6 +34,7 @@ import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { AppStackParamList, HouseholdStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formStyles, webPointer } from '../theme/forms';
+import { useI18n } from '../i18n/I18nContext';
 import { toDataUri } from '../utils/base64';
 
 const DETAIL_PHOTO_WIDTH = 300;
@@ -76,6 +77,7 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
     allowStatusChange = false,
     ingredientStatusFilter,
   } = route.params;
+  const { t, intlLocale } = useI18n();
   const { isWideWeb } = useResponsiveLayout();
 
   const [ingredient, setIngredient] = useState<Ingredient | null>(null);
@@ -135,11 +137,11 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
       setIngredient(item);
     } catch (err) {
       setIngredient(null);
-      setError(errorMessage(err, 'Nie udało się załadować produktu'));
+      setError(errorMessage(err, t('ingredient.loadFailed')));
     } finally {
       setIsLoading(false);
     }
-  }, [householdId, ingredientId]);
+  }, [householdId, ingredientId, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -161,9 +163,9 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
     }
 
     openConfirm({
-      title: 'Oznacz jako zjedzone',
-      message: `Czy produkt „${ingredient.name}” został zjedzony?`,
-      confirmLabel: 'Zjedzone',
+      title: t('ingredient.consumeTitle'),
+      message: t('ingredient.consumeMessage', { name: ingredient.name }),
+      confirmLabel: t('ingredient.consumeConfirm'),
       variant: 'default',
       onConfirm: async () => {
         setError(null);
@@ -172,7 +174,7 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
           await consumeIngredient(householdId, ingredientId, todayLocalDateString());
           goBackToIngredients();
         } catch (err) {
-          setError(errorMessage(err, 'Nie udało się oznaczyć produktu jako zjedzonego'));
+          setError(errorMessage(err, t('ingredient.consumeFailed')));
         } finally {
           setPendingAction(null);
         }
@@ -186,9 +188,9 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
     }
 
     openConfirm({
-      title: 'Oznacz jako wyrzucone',
-      message: `Czy produkt „${ingredient.name}” został wyrzucony i nie został zjedzony?`,
-      confirmLabel: 'Wyrzucone',
+      title: t('ingredient.discardTitle'),
+      message: t('ingredient.discardMessage', { name: ingredient.name }),
+      confirmLabel: t('ingredient.discardConfirm'),
       variant: 'default',
       onConfirm: async () => {
         setError(null);
@@ -197,7 +199,7 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
           await discardIngredient(householdId, ingredientId, todayLocalDateString());
           goBackToIngredients();
         } catch (err) {
-          setError(errorMessage(err, 'Nie udało się oznaczyć produktu jako wyrzuconego'));
+          setError(errorMessage(err, t('ingredient.discardFailed')));
         } finally {
           setPendingAction(null);
         }
@@ -211,9 +213,9 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
     }
 
     openConfirm({
-      title: 'Usuń produkt',
-      message: `Czy na pewno chcesz usunąć „${ingredient.name}”? Tej operacji nie można cofnąć.`,
-      confirmLabel: 'Usuń',
+      title: t('ingredient.deleteTitle'),
+      message: t('ingredient.deleteMessage', { name: ingredient.name }),
+      confirmLabel: t('common.delete'),
       variant: 'destructive',
       onConfirm: async () => {
         setError(null);
@@ -222,7 +224,7 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
           await deleteIngredient(householdId, ingredientId);
           goBackToIngredients();
         } catch (err) {
-          setError(errorMessage(err, 'Nie udało się usunąć produktu'));
+          setError(errorMessage(err, t('ingredient.deleteFailed')));
         } finally {
           setPendingAction(null);
         }
@@ -257,7 +259,7 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
 
   const status = getExpiryStatus(ingredient.expiresAt);
   const photoUri = ingredient.ingredientPicture ? toDataUri(ingredient.ingredientPicture) : null;
-  const quantityLabel = formatIngredientQuantity(ingredient.quantity) ?? '-';
+  const quantityLabel = formatIngredientQuantity(ingredient.quantity, t) ?? '-';
   const isActionPending = pendingAction !== null || isConfirmLoading;
   const showExpiryBadge = shouldShowExpiryBadge(ingredientStatusFilter);
 
@@ -285,7 +287,7 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
                 onPress={openEdit}
                 disabled={isActionPending}
               >
-                <Text style={styles.editButtonText}>Edytuj</Text>
+                <Text style={styles.editButtonText}>{t('ingredient.detailEdit')}</Text>
               </Pressable>
 
               <Pressable
@@ -300,7 +302,7 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
                 {pendingAction === 'delete' ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.dangerButtonText}>Usuń</Text>
+                  <Text style={styles.dangerButtonText}>{t('common.delete')}</Text>
                 )}
               </Pressable>
             </View>
@@ -317,12 +319,12 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
                     status === 'soon' && styles.statusSoon,
                   ]}
                 >
-                  <Text style={styles.statusBadgeText}>{expiryStatusLabel(status)}</Text>
+                  <Text style={styles.statusBadgeText}>{expiryStatusLabel(status, t)}</Text>
                 </View>
               ) : null}
             </View>
             <View style={styles.householdBadge}>
-              <Text style={styles.householdBadgeLabel}>Lodówka</Text>
+              <Text style={styles.householdBadgeLabel}>{t('common.fridge')}</Text>
               <Text style={styles.householdBadgeName}>{householdName}</Text>
             </View>
           </View>
@@ -338,7 +340,7 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
                   />
                 ) : (
                   <View style={styles.photoPlaceholder}>
-                    <Text style={styles.photoPlaceholderText}>Brak zdjęcia</Text>
+                    <Text style={styles.photoPlaceholderText}>{t('ingredient.detailNoPhoto')}</Text>
                   </View>
                 )}
               </View>
@@ -353,12 +355,18 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
                 isWideWeb && styles.detailPanelColumn,
               ]}
             >
-              <DetailRow label="Data zakupu" value={formatLocalDate(ingredient.purchasedAt)} />
-              <DetailRow label="Termin ważności" value={formatLocalDate(ingredient.expiresAt)} />
-              <DetailRow label="Ilość" value={quantityLabel} />
+              <DetailRow
+                label={t('ingredient.labelPurchased')}
+                value={formatLocalDate(ingredient.purchasedAt, intlLocale)}
+              />
+              <DetailRow
+                label={t('ingredient.labelExpires')}
+                value={formatLocalDate(ingredient.expiresAt, intlLocale)}
+              />
+              <DetailRow label={t('ingredient.labelQuantity')} value={quantityLabel} />
               {ingredient.notes ? (
                 <View style={styles.notesBlock}>
-                  <Text style={styles.detailLabel}>Uwagi</Text>
+                  <Text style={styles.detailLabel}>{t('ingredient.labelNotes')}</Text>
                   <Text style={styles.notesValue}>{ingredient.notes}</Text>
                 </View>
               ) : null}
@@ -370,11 +378,8 @@ export function IngredientDetailScreen({ navigation, route }: Props) {
           {allowStatusChange ? (
             <View style={styles.statusSection}>
               <View style={styles.infoBanner}>
-                <Text style={styles.infoBannerTitle}>Co oznacza „Wyrzucone”?</Text>
-                <Text style={styles.infoBannerText}>
-                  Oznacza, że produkt nie został zjedzony. Ta informacja będzie wykorzystywana przy
-                  obliczaniu statystyk i generowaniu listy zakupów.
-                </Text>
+                <Text style={styles.infoBannerTitle}>{t('ingredient.discardBannerTitle')}</Text>
+                <Text style={styles.infoBannerText}>{t('ingredient.discardBannerText')}</Text>
               </View>
 
               <IngredientStatusButtons

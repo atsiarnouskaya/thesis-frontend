@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Granularity } from '../api/statistics';
 import { formatPeriodLabel } from '../statistics/statisticsUtils';
+import { useI18n } from '../i18n/I18nContext';
 import { colors } from '../theme/colors';
 import { webPointer } from '../theme/forms';
 
@@ -24,6 +25,7 @@ export type ChartPoint = {
 type Props = {
   points: ChartPoint[];
   granularity: Granularity;
+  intlLocale?: string;
 };
 
 const CHART_HEIGHT = 220;
@@ -33,7 +35,9 @@ const PLOT_HEIGHT = TOOLTIP_AREA_HEIGHT + CHART_HEIGHT + LABEL_AREA_HEIGHT;
 const BAR_COLUMN_WIDTH = 88;
 const BAR_WIDTH = 36;
 
-export function StatisticsBarChart({ points, granularity }: Props) {
+export function StatisticsBarChart({ points, granularity, intlLocale: intlLocaleProp }: Props) {
+  const { t, intlLocale: contextLocale } = useI18n();
+  const intlLocale = intlLocaleProp ?? contextLocale;
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
@@ -58,7 +62,7 @@ export function StatisticsBarChart({ points, granularity }: Props) {
   if (points.length === 0) {
     return (
       <View style={styles.emptyChart}>
-        <Text style={styles.emptyChartText}>Brak zakupów w wybranym okresie.</Text>
+        <Text style={styles.emptyChartText}>{t('statistics.chartEmptyPeriod')}</Text>
       </View>
     );
   }
@@ -125,7 +129,7 @@ export function StatisticsBarChart({ points, granularity }: Props) {
                         <View style={styles.tooltip}>
                           <Text style={styles.tooltipCount}>{point.count}</Text>
                           <Text style={styles.tooltipPeriod} numberOfLines={2}>
-                            {formatPeriodLabel(point.periodStart, point.periodEnd, granularity)}
+                            {formatPeriodLabel(point.periodStart, point.periodEnd, granularity, intlLocale)}
                           </Text>
                         </View>
                       ) : (
@@ -155,20 +159,25 @@ export function StatisticsBarChart({ points, granularity }: Props) {
           <View style={styles.mobileDetail}>
             <Text style={styles.mobileDetailCount}>{activePoint.count}</Text>
             <Text style={styles.mobileDetailLabel}>
-              {formatPeriodLabel(activePoint.periodStart, activePoint.periodEnd, granularity)}
+              {formatPeriodLabel(
+                activePoint.periodStart,
+                activePoint.periodEnd,
+                granularity,
+                intlLocale,
+              )}
             </Text>
-            <Text style={styles.mobileDetailHint}>Dotknij słupka ponownie, aby ukryć</Text>
+            <Text style={styles.mobileDetailHint}>{t('statistics.chartHintTapHide')}</Text>
           </View>
         ) : null}
 
         {!isNativeMobile ? (
-          <Text style={styles.hint}>Najedź kursorem na słupek, aby zobaczyć szczegóły</Text>
+          <Text style={styles.hint}>{t('statistics.chartHintHover')}</Text>
         ) : points.length > 0 && !activePoint ? (
-          <Text style={styles.hint}>Dotknij słupka, aby zobaczyć liczbę zakupów</Text>
+          <Text style={styles.hint}>{t('statistics.chartHintTap')}</Text>
         ) : null}
 
         {needsScroll ? (
-          <Text style={styles.scrollHint}>Przewiń w poziomie, aby zobaczyć cały wykres</Text>
+          <Text style={styles.scrollHint}>{t('statistics.chartScrollHint')}</Text>
         ) : null}
       </View>
     </View>

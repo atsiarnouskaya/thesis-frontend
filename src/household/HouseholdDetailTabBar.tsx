@@ -2,6 +2,7 @@ import React from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { colors } from '../theme/colors';
+import { useI18n } from '../i18n/I18nContext';
 import { webPointer } from '../theme/forms';
 
 export type HouseholdDetailTab = 'products' | 'statistics' | 'shoppingLists' | 'settings';
@@ -26,90 +27,61 @@ export function HouseholdDetailTabBar({
   onChange,
   variant,
 }: Props) {
+  const { t } = useI18n();
   const { isWideWeb } = useResponsiveLayout();
   const isVertical = variant === 'vertical' || (variant == null && isWideWeb);
-  const isMobileGrid = !isVertical && isNativeMobile;
 
   const tabs: TabItem[] = [
-    { id: 'products', label: 'Produkty', shortLabel: 'Produkty' },
-    { id: 'statistics', label: 'Statystyki zakupów', shortLabel: 'Statystyki' },
-    { id: 'shoppingLists', label: 'Listy zakupów', shortLabel: 'Listy' },
-    { id: 'settings', label: 'Ustawienia', shortLabel: 'Ustawienia' },
+    {
+      id: 'products',
+      label: t('nav.tabProducts'),
+      shortLabel: t('nav.tabProducts'),
+    },
+    {
+      id: 'statistics',
+      label: t('nav.tabStatistics'),
+      shortLabel: t('nav.tabStatisticsShort'),
+    },
+    {
+      id: 'shoppingLists',
+      label: t('nav.tabShoppingLists'),
+      shortLabel: t('nav.tabShoppingListsShort'),
+    },
+    {
+      id: 'settings',
+      label: t('nav.tabSettings'),
+      shortLabel: t('nav.tabSettings'),
+    },
   ];
 
-  const bar = (
-    <View
-      style={[
-        styles.bar,
-        isVertical && styles.barVertical,
-        isVertical && isNativeMobile && styles.barVerticalMobile,
-        isMobileGrid && styles.barMobileGrid,
-        !isVertical && !isMobileGrid && styles.barHorizontal,
-      ]}
-    >
-      {isVertical ? <Text style={styles.sidebarHeading}>Sekcje</Text> : null}
-      {tabs.map((tab) => {
-        const selected = activeTab === tab.id;
-        const label = isMobileGrid ? (tab.shortLabel ?? tab.label) : tab.label;
-
-        return (
-          <Pressable
-            key={tab.id}
-            onPress={() => onChange(tab.id)}
-            style={[
-              styles.tab,
-              isVertical && styles.tabVertical,
-              isMobileGrid && styles.tabMobileGrid,
-              !isVertical && !isMobileGrid && styles.tabHorizontal,
-              selected && styles.tabActive,
-              isVertical && selected && styles.tabActiveVertical,
-              webPointer,
-            ]}
-          >
-            <Text
-              style={[
-                styles.tabLabel,
-                isMobileGrid && styles.tabLabelMobile,
-                selected && styles.tabLabelActive,
-              ]}
-              numberOfLines={isVertical ? 2 : 1}
-            >
-              {label}
-            </Text>
-            {tab.badge != null ? (
-              <View style={[styles.badge, selected && styles.badgeActive]}>
-                <Text style={[styles.badgeText, selected && styles.badgeTextActive]}>
-                  {tab.badge}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-
-  if (isMobileGrid) {
-    return bar;
-  }
-
-  if (!isVertical && !isWideWeb) {
+  if (!isVertical) {
     return (
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.barScrollContent}
-        style={styles.barScroll}
+        contentContainerStyle={[
+          styles.barScrollContent,
+          isNativeMobile && styles.barScrollContentMobile,
+        ]}
+        style={[styles.barScroll, isNativeMobile && styles.barScrollMobile]}
       >
         {tabs.map((tab) => {
           const selected = activeTab === tab.id;
+          const label = isNativeMobile ? (tab.shortLabel ?? tab.label) : tab.label;
+
           return (
             <Pressable
               key={tab.id}
               onPress={() => onChange(tab.id)}
-              style={[styles.tab, styles.tabPill, selected && styles.tabActive, webPointer]}
+              style={[
+                styles.tab,
+                styles.tabPill,
+                isNativeMobile && styles.tabPillMobile,
+                selected && styles.tabActive,
+                webPointer,
+              ]}
             >
-              <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>{tab.label}</Text>
+              <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>{label}</Text>
               {tab.badge != null ? (
                 <View style={[styles.badge, selected && styles.badgeActive]}>
                   <Text style={[styles.badgeText, selected && styles.badgeTextActive]}>
@@ -124,7 +96,42 @@ export function HouseholdDetailTabBar({
     );
   }
 
-  return bar;
+  return (
+    <View style={[styles.bar, styles.barVertical]}>
+      <Text style={styles.sidebarHeading}>{t('nav.sections')}</Text>
+      {tabs.map((tab) => {
+        const selected = activeTab === tab.id;
+
+        return (
+          <Pressable
+            key={tab.id}
+            onPress={() => onChange(tab.id)}
+            style={[
+              styles.tab,
+              styles.tabVertical,
+              selected && styles.tabActive,
+              selected && styles.tabActiveVertical,
+              webPointer,
+            ]}
+          >
+            <Text
+              style={[styles.tabLabel, selected && styles.tabLabelActive]}
+              numberOfLines={2}
+            >
+              {tab.label}
+            </Text>
+            {tab.badge != null ? (
+              <View style={[styles.badge, selected && styles.badgeActive]}>
+                <Text style={[styles.badgeText, selected && styles.badgeTextActive]}>
+                  {tab.badge}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -135,21 +142,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     flexGrow: 0,
   },
+  barScrollMobile: {
+    marginBottom: 16,
+    marginHorizontal: -2,
+  },
   barScrollContent: {
     gap: 8,
     paddingRight: 4,
   },
-  barHorizontal: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 24,
-  },
-  barMobileGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  barScrollContentMobile: {
+    paddingHorizontal: 2,
     gap: 10,
-    marginBottom: 20,
   },
   barVertical: {
     width: 220,
@@ -160,11 +163,6 @@ const styles = StyleSheet.create({
     paddingRight: 24,
     borderRightWidth: 1,
     borderRightColor: colors.border,
-  },
-  barVerticalMobile: {
-    width: 142,
-    marginRight: 16,
-    paddingRight: 12,
   },
   sidebarHeading: {
     fontSize: 11,
@@ -188,20 +186,9 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 999,
   },
-  tabHorizontal: {
+  tabPillMobile: {
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 999,
-  },
-  tabMobileGrid: {
-    flexGrow: 1,
-    flexBasis: '47%',
-    maxWidth: '48%',
-    minHeight: 54,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    borderRadius: 12,
   },
   tabVertical: {
     width: '100%',
@@ -224,11 +211,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.textMuted,
-  },
-  tabLabelMobile: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 13,
   },
   tabLabelActive: {
     color: '#fff',
